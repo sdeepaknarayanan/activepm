@@ -1,5 +1,6 @@
 # Initial try at implementation to see what needs to be parallelized
 
+import sys
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -33,6 +34,7 @@ def caller():
     totalDays = len(times)
     X_cols = list(df.columns)
     X_cols.remove('PM2.5')
+    X_cols.remove('station_id')
     y_col = ['PM2.5']
 
     allStations = df['station_id'].unique()
@@ -100,6 +102,8 @@ def caller():
                     reg = Regressor(**hy)
                     reg.fit(train_df[X_cols], train_df[y_col])
                     predictions = reg.predict(val_df[X_cols])
+                    # print (predictions)
+                    # print (val_df[y_col].values)
 
                     rmse0 = rmse(predictions, val_df[y_col].values)
                     mae0 = mae(predictions, val_df[y_col].values)
@@ -109,18 +113,19 @@ def caller():
                     store['kin'].append(kin)
                     store['time_ix'].append(time_ix)
                     store['hy_ix'].append(hy_ix)
-                    store['rmse0'].append(rmse0)
-                    store['mae0'].append(mae0)
-                    
-    results = pd.DataFrame(store)
-    print(results.head())
-    return counter
+                    store['rmse'].append(rmse0)
+                    store['mae'].append(mae0)
+
+    return store, counter
 
 import time
 
 start = time.time()
-counter = caller()
+store, counter = caller()
 end = time.time()
 print("Time Taken (s):", end - start)
 print("Trainings performed:", counter)
-
+results = pd.DataFrame(store)
+print()
+print("RESULTS")
+print(results.head())
