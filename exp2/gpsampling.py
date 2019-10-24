@@ -17,9 +17,9 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 class GPActive():
 
-	def __init__(
-				self,
-				df,
+    def __init__(
+                self,
+                df,
                 train_stations, 
                 pool_stations, 
                 test_stations, 
@@ -54,20 +54,20 @@ class GPActive():
         self.gp_rmse = np.zeros(self.test_days + 1)
         self.gp_mae = np.zeros(self.test_days + 1)
 
-		if self.is_trainable and self.is_testable:
+        if self.is_trainable and self.is_testable:
 
-			is_trained = self.gp_train()
+            is_trained = self.gp_train()
 
-			if is_trained:
+            if is_trained:
 
-				mean, variance = self.model.predict_y(np.array(self.X_test))
-				self.gp_rmse[0] = np.sqrt(mean_squared_ersror(mean, np.array(self.y_test)))
-				self.gp_mae[0] = mean_absolute_error(mean, np.array(self.y_test))
+                mean, variance = self.model.predict_y(np.array(self.X_test))
+                self.gp_rmse[0] = np.sqrt(mean_squared_ersror(mean, np.array(self.y_test)))
+                self.gp_mae[0] = mean_absolute_error(mean, np.array(self.y_test))
 
-			else:
+            else:
 
-				self.gp_rmse[0] = None
-				self.gp_mae[0] = None
+                self.gp_rmse[0] = None
+                self.gp_mae[0] = None
         else:
 
             print("Model not fit since no train data (or) no test data available\n")
@@ -76,7 +76,7 @@ class GPActive():
             self.gp_mae[0] = None
 
     def _next(self):
-    	self.current_day = self.current_day + 1
+        self.current_day = self.current_day + 1
 
 
     def data_update_daily(self):
@@ -160,27 +160,27 @@ class GPActive():
         if self.is_queryable:
 
 
-	        variance = {i:[0] for i in self.pool_stations}
+            variance = {i:[0] for i in self.pool_stations}
 
-	        for station in self.pool_stations:
-	        	try:
-		            pool_data = self.pool.groupby('Station').get_group(station)
-		            X_pool = np.array(pool_data[self.train_columns])
-		            mean, var = self.model.predict_y(X_pool)
-		            variance[station] = var.mean()
-	            except KeyError: 
-	            	continue
+            for station in self.pool_stations:
+                try:
+                    pool_data = self.pool.groupby('Station').get_group(station)
+                    X_pool = np.array(pool_data[self.train_columns])
+                    mean, var = self.model.predict_y(X_pool)
+                    variance[station] = var.mean()
+                except KeyError: 
+                    continue
 
 
-	        stations_to_add = []
+            stations_to_add = []
 
-	    	for i in range(self.number_to_query):
-	        	curr_station = max(variance.items(), key=operator.itemgetter(1))[0]
-	        	stations_to_add.append(curr_station)
-	        	del variance[curr_station]
+            for i in range(self.number_to_query):
+                curr_station = max(variance.items(), key=operator.itemgetter(1))[0]
+                stations_to_add.append(curr_station)
+                del variance[curr_station]
 
-	        self.queried_stations.extend(stations_to_add)
-	        return stations_to_add
+            self.queried_stations.extend(stations_to_add)
+            return stations_to_add
 
         else:
             print("No Data in Pool to Query")
@@ -230,7 +230,7 @@ class GPActive():
 
     def active_gp(self):
 
-    	for itr in range(1, self.test_days + 1):
+        for itr in range(1, self.test_days + 1):
 
             print("Current Day before update:", self.current_day)
             ##########################################################
@@ -249,7 +249,7 @@ class GPActive():
                     self.data_update_daily()
 
             else:
-            	self.data_update_daily()
+                self.data_update_daily()
 
             if self.current_day < self.train_days:
                 timestamps = self.timestamps[:self.current_day + 1]
@@ -306,42 +306,8 @@ class GPActive():
 
                 else:
 
-                	self.gp_rmse[itr] = None
-                	self.gp_mae[itr] = None
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+                    self.gp_rmse[itr] = None
+                    self.gp_mae[itr] = None
 
 
 
@@ -349,9 +315,9 @@ class GPActive():
 
 
         self.current_day = self.context_days
-        self.train = pd.concat([self.df.groupby('Station').get_group(station) for station in self.reset_train_stations])
-        self.pool = pd.concat([self.df.groupby('Station').get_group(station) for station in self.reset_pool_stations])
-        self.test = pd.concat([self.df.groupby('Station').get_group(station) for station in self.reset_test_stations])
+        self.train = pd.concat([self.df.groupby('Station').get_group(station) for station in self.train_stations])
+        self.pool = pd.concat([self.df.groupby('Station').get_group(station) for station in self.pool_stations])
+        self.test = pd.concat([self.df.groupby('Station').get_group(station) for station in self.test_stations])
 
         # get the unique timestamps 
         # need to sort them to index into the timestamp data for the current day s
@@ -414,16 +380,8 @@ class GPActive():
             print("No initial test data\n")
             self.is_testable = False 
 
-        self.train_stations = deepcopy(self.reset_train_stations)
-        self.test_stations = deepcopy(self.reset_test_stations)
-        self.pool_stations = deepcopy(self.reset_pool_stations)
-
         self.queried_stations = []
-
-        if self.is_trainable and self.is_testable:
-        	self.gp_train()
-
-    	
+        
 
 
 
