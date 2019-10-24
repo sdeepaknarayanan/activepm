@@ -1,3 +1,5 @@
+# Initial try at implementation to see what needs to be parallelized
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
