@@ -32,11 +32,8 @@ class ActiveLearning():
             test_days,
             train_days,
             number_of_seeds,
+            number_to_query
         ):
-
-        """
-        Dataframe
-        """
 
         self.df = df
         self.train_stations = train_stations
@@ -44,7 +41,21 @@ class ActiveLearning():
         self.test_stations = test_stations
         self.learners = learners
         self.frequency = frequency
-        self.current_day = context_days - 1
+        self.number_to_query = number_to_query
+
+        ########################################
+        ########### RESET ATTRIBUTES ###########
+        ########################################
+        self.reset_df = df
+        self.reset_train_stations = train_stations
+        self.reset_test_stations = test_stations 
+        self.reset_pool_stations = pool_stations 
+        self.reset_learners = learners 
+        ########################################
+        ############# RESET ATTRIBUTES DONE ####
+        ########################################
+
+        self.current_day = context_days
         self.context_days = context_days
         self.test_days = test_days
         self.train_days = train_days
@@ -60,6 +71,8 @@ class ActiveLearning():
 
         ## First I am choosing by stations, it can't be the case that there is no data
         ## for a given station. So there can be no key error here. 
+
+        self.initialize_data()
 
         self.train = pd.concat([self.df.groupby('Station').get_group(station) for station in train_stations])
         self.pool = pd.concat([self.df.groupby('Station').get_group(station) for station in pool_stations])
@@ -82,7 +95,12 @@ class ActiveLearning():
             except KeyError:
                 continue
 
+
+        ##########################################################
+        #### The above can be avoided using the isin() method ####
+        ##########################################################
         # This If-Else clause avoids a value error
+
         if len(initial_train_data) != 0:
             self.train = pd.concat( initial_train_data )
             X_train = self.train[self.train_columns]
@@ -126,47 +144,38 @@ class ActiveLearning():
 
         
         self.queried_stations = []
-        self.rmse_error = np.zeros(self.test_days + 1) 
-        self.mae_error = np.zeros(self.test_days + 1) 
+        self.random_queried_stations = [[]*self.number_of_seeds]
+        self.qbc_rmse = np.zeros(self.test_days + 1) 
+        self.qbc_mae = np.zeros(self.test_days + 1) 
         self.random_rmse = np.zeros((number_of_seeds, self.test_days + 1))
         self.random_mae =  np.zeros((number_of_seeds, self.test_days + 1))
 
 
-        if self.is_trainable:
+        if self.is_trainable and self.is_testable:
 
             for i in self.learners:
                 self.learners[i].fit(X_train, y_train)
 
-            if self.is_testable:
+            rmse = np.zeros(len(self.learners))
+            mae = np.zeros(len(self.learners))
+            for i in range(len(self.learners)):
+                prediction = self.learners[i].predict(self.X_test)
+                rmse[i] = np.sqrt(mean_squared_error(prediction, self.y_test))
+                mae[i] = mean_absolute_error(prediction, self.y_test)
+            self.qbc_rmse[0] = rmse.mean()
+            self.qbc_mae[0] = mae.mean()
 
-                rmse = np.zeros(len(self.learners))
-                mae = np.zeros(len(self.learners))
-                for i in range(len(self.learners)):
-                    prediction = self.learners[i].predict(self.X_test)
-                    rmse[i] = np.sqrt(mean_squared_error(prediction, self.y_test))
-                    mae[i] = mean_absolute_error(prediction, self.y_test)
-                self.rmse_error[0] = rmse.mean()
-                self.mae_error[0] = mae.mean()
+            for i in range(number_of_seeds):
+                self.random_rmse[i][0] = rmse.mean()
+                self.random_mae[i][0] = mae.mean()
 
-                for i in range(number_of_seeds):
-                    self.random_rmse[i][0] = rmse.mean()
-                    self.random_mae[i][0] = mae.mean()
-
-            else:
-
-                self.rmse_error[0] = None
-                self.mae_error[0] = None
-
-                for i in range(number_of_seeds):
-                    self.random_rmse[i][0] = None
-                    self.random_mae[i][0] = None
 
         else:
 
-            print("Model not fit since no train data available\n")
+            print("Model not fit since no train data (or) no test data available\n")
 
-            self.rmse_error[0] = None
-            self.mae_error[0] = None
+            self.qbc_rmse[0] = None
+            self.qbc_mae[0] = None
 
             for i in range(number_of_seeds):
                 self.random_rmse[i][0] = None
@@ -220,8 +229,15 @@ class ActiveLearning():
             self.is_queryable = True
 
 
+            ######################################################
+            ######## POOL what about removal of stations #########
+            ######################################################
+
+
         else:
-            pass
+            if self.pool.shape[0] == 0:
+                self.is_queryable = False
+            
 
 
         try:
@@ -252,10 +268,27 @@ class ActiveLearning():
                     temp[i] = temp[i].reshape(temp[i].shape[0])
                 temp = pd.DataFrame(temp)
                 stddev[station] = [(temp.std(axis=1).mean())]
-            station_to_add = stddev.loc[0].idxmax()
-            self.queried_stations.append(station_to_add)
-            return station_to_add
 
+            ############################################
+            ######## Adding Multiple Stations ##########
+            ############################################
+
+            stations_to_add = []
+
+            for i in range(self.number_to_query):
+
+                if stddev.shape[1] > 0:
+                    current_station = stddev.loc[0].idxmax()
+                    stddev.drop(columns = [current_station], inplace = True)
+                    stations_to_add.append(current_station)
+                else:
+                    stations_to_add.append(None)
+
+            self.queried_stations.extend(stations_to_add)
+
+            return stations_to_add
+
+            
         else:
             print("No Data in Pool to Query")
             self.queried_stations.append(None)
@@ -265,12 +298,14 @@ class ActiveLearning():
 
 
 
-
-    def query_update(self, station_to_add):
+    def query_update(self, stations_to_add):
         
-        self.pool = self.pool[self.pool['Station']!=station_to_add]
-        self.pool_stations.remove(station_to_add)
-        self.train_stations.append(station_to_add)
+        ##################### NEED TO UPDATE TO HAVE MULTIPLE STATIONS ########################
+        for station in stations_to_add:
+            self.pool_stations.remove(station)
+            self.train_stations.append(station)
+
+        self.pool = self.pool[~self.pool['Station'].isin(stations_to_add)]
         self.data_update_daily()
 
 
@@ -282,10 +317,17 @@ class ActiveLearning():
             self._next()            # Update the current day
             ##########################################################
 
-            
-            current_timestamp = self.timestamps[self.current_day]
-            timestamps = self.timestamps[self.current_day + 1 - self.train_days: self.current_day + 1]
+            if self.current_day < self.train_days:
+                timestamps = self.timestamps[:self.current_day + 1]
+            else:
+                timestamps = self.timestamps[self.current_day + 1 - self.train_days: self.current_day + 1]
+
             training_data = []
+
+            ##########################################################
+            ########### Last K Days = 100 ############################
+            ########### Context days = 30 ###########################
+            ##########################################################
 
             for time in timestamps:
                 try:
@@ -315,20 +357,94 @@ class ActiveLearning():
 
             if itr % self.frequency == 1:
 
-                station_to_add = self.max_variance_sampling()
+                stations_to_add = self.max_variance_sampling()
 
                 if station_to_add is not None:
-                    self.query_update(station_to_add)
+                    self.query_update(stations_to_add)
                 else:
                     self.data_update_daily()
 
             else:
                 self.data_update_daily()
             
-            if self.is_trainable:
+            if self.is_trainable and self.is_testable:
 
-                if self.is_testable:
                 
+                mse = np.zeros(len(self.learners))  
+                mae = np.zeros(len(self.learners))
+
+               for i in range(len(self.learners)):
+
+                    self.learners[i].fit(X_train, y_train)
+                    prediction = self.learners[i].predict(self.X_test)
+                    mse[i] = (mean_squared_error(prediction, self.y_test))
+                    mae[i] = (mean_absolute_error(prediction, self.y_test))
+
+                self.qbc_rmse[itr] = np.sqrt(np.mean(mse))
+                self.qbc_mae[itr] = np.mean(mae)
+
+            else:
+                
+                self.qbc_rmse[itr] = None
+                self.qbc_mae[itr] = None
+                
+
+    def random_sampling(self):
+
+
+        for seed in range(self.number_of_seeds):
+
+            rand_state = np.random.RandomState(seed)
+
+            for itr in range(1, self.test_days):
+
+                ##########################################################
+                self._next()            # Update the current day
+                ##########################################################
+
+                timestamps = self.timestamps[self.current_day + 1 - self.train_days: self.current_day + 1]
+                training_data = []
+
+                for time in timestamps:
+                    try:
+                        temp = self.train.groupby('Time').get_group(time)
+                        training_data.append(temp)
+
+                    except KeyError:
+                        pass
+
+
+                if len(training_data) > 0:
+
+                    training_data = pd.concat(training_data)
+
+                    X_train = training_data[self.train_columns]
+                    y_train = training_data[['PM2.5']]
+
+                    X_train = np.array(X_train)
+                    y_train = np.array(y_train)
+
+                    self.is_trainable = True
+
+                else:
+                    self.is_trainable = False
+
+
+                if itr % self.frequency == 1:
+
+                    stations_to_add = rand_state.choice(
+                        self.pool_stations,
+                        self.number_to_query, 
+                        replace=False
+                        )
+                    self.random_queried_stations[seed].extend(stations_to_add)
+                    self.query_update(stations_to_add)
+
+                else:
+                    self.update_daily()
+
+                if self.is_trainable and self.is_testable:
+                    
                     mse = np.zeros(len(self.learners))  
                     mae = np.zeros(len(self.learners))
 
@@ -339,91 +455,90 @@ class ActiveLearning():
                         mse[i] = (mean_squared_error(prediction, self.y_test))
                         mae[i] = (mean_absolute_error(prediction, self.y_test))
 
-                    self.rmse_error[itr] = np.sqrt(np.mean(mse))
-                    self.mae_error[itr] = np.mean(mae)
+                    self.random_rmse[seed][itr] = np.sqrt(np.mean(mse))
+                    self.random_mae[seed][itr] = np.mean(mae)
 
                 else:
 
-                    self.rmse_error[itr] = None
-                    self.mae_error[itr] = None
+                    self.random_rmse[seed][itr] = None
+                    self.random_mae[seed][itr] = None
 
-            else:
-                
-                self.rmse_error[itr] = None
-                self.mae_error[itr] = None
-                
-
-    def random_sampling(self, seed=0):
-
-        np.random.seed(seed)
-
-        for itr in range(1, self.test_days):
-
-            ##########################################################
-            self._next()            # Update the current day
-            ##########################################################
+            self.initialize_data()
 
 
-            current_timestamp = self.timestamps[self.current_day]
-            timestamps = self.timestamps[self.current_day + 1 - self.train_days: self.current_day + 1]
-            training_data = []
 
-            for time in timestamps:
-                try:
-                    temp = self.train.groupby('Time').get_group(time)
-                    training_data.append(temp)
-
-                except KeyError:
-                    passs
+    def initialize_data(self):
 
 
-            if len(training_data) > 0:
+        self.train = pd.concat([self.df.groupby('Station').get_group(station) for station in self.reset_train_stations])
+        self.pool = pd.concat([self.df.groupby('Station').get_group(station) for station in self.reset_pool_stations])
+        self.test = pd.concat([self.df.groupby('Station').get_group(station) for station in self.reset_test_stations])
 
-                training_data = pd.concat(training_data)
-
-                X_train = training_data[self.train_columns]
-                y_train = training_data[['PM2.5']]
-
-                X_train = np.array(X_train)
-                y_train = np.array(y_train)
-
-                self.is_trainable = True
-
-            else:
-                self.is_trainable = False
+        # get the unique timestamps 
+        # need to sort them to index into the timestamp data for the current day s
+        self.timestamps = self.df['Time'].unique()
+        self.timestamps.sort()
+        initial_timestamps = self.timestamps[:self.context_days + 1]
 
 
-            if itr % self.frequency == 1:
+        initial_train_data = []
 
-                station_to_add = np.random.choice(self.pool_stations, replace=False)
-                self.query_update(station_to_add)
+        for time in initial_timestamps: 
+            try:
+                temp = self.train.groupby('Time').get_group(time)
+                initial_train_data.append(time)
+            
+            except KeyError:
+                continue
 
-            else:
-                self.update_daily()
 
-            if self.is_trainable:
+        ##########################################################
+        #### The above can be avoided using the isin() method ####
+        ##########################################################
+        # This If-Else clause avoids a value error
 
-                if self.is_testable:
-                
-                    mse = np.zeros(len(self.learners))  
-                    mae = np.zeros(len(self.learners))
+        if len(initial_train_data) != 0:
+            self.train = pd.concat( initial_train_data )
+            X_train = self.train[self.train_columns]
+            y_train = self.train[['PM2.5']]
+            self.is_trainable = True
 
-                   for i in range(len(self.learners)):
+        else:
+            print("No initial train data\n")
+            self.is_trainable = False
 
-                        self.learners[i].fit(X_train, y_train)
-                        prediction = self.learners[i].predict(self.X_test)
-                        mse[i] = (mean_squared_error(prediction, self.y_test))
-                        mae[i] = (mean_absolute_error(prediction, self.y_test))
+            
 
-                    self.rmse_error[itr] = np.sqrt(np.mean(mse))
-                    self.mae_error[itr] = np.mean(mae)
 
-                else:
+        initial_pool_data = []
 
-                    self.rmse_error[itr] = None
-                    self.mae_error[itr] = None
+        for time in initial_timestamps:
+            try:
+                temp = self.pool.groupby('Time').get_group(time)
 
-            else:
-                
-                self.rmse_error[itr] = None
-                self.mae_error[itr] = None
+            except KeyError:
+                continue
+
+        if len(initial_pool_data) > 0:
+            self.pool = pd.concat( initial_pool_data )
+            self.is_queryable = True
+
+        else:
+            print("No initial pool data\n")
+            self.is_queryable = False
+
+
+        try:
+            self.current_test = self.test.groupby('Time').get_group(self.timestamps[self.current_day])
+            self.X_test = self.current_test[self.train_columns]
+            self.y_test = self.current_test[['PM2.5']]
+            self.is_testable = True
+
+        except KeyError:
+            print("No initial test data\n")
+            self.is_testable = False 
+
+
+        
+
+
