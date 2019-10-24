@@ -48,7 +48,7 @@ def rmse_mae_over(
     hyperparameters,
     datafile
     ):
-    ''''''
+    '''Finds the rmse and mae by doing nested cross validation over the dataset'''
     # changeable stuff
     stepSize = stepSize # sensor placement in every `stepSize` days
     lastKDays = lastKDays # we forget data before k days

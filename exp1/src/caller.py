@@ -28,8 +28,8 @@ args = parser.parse_args()
 fname = getfName(args.datafile)
 print ('fname:', fname)
 proc_bucket = ProcBucket(args.jobs, args.stime)
-for lastKDays in [10, 30, 50, 100, 150]:
-    for stepSize in [50, 100, 150, 200, 250]:
+for lastKDays in [10, 20, 30, 50, 100, 200, 300]:
+    for stepSize in [5]: # this is fixed for now
         store_path = f"./results/{fname}/{args.reg}/{lastKDays}/{stepSize}"
         if not os.path.exists(store_path):
             os.makedirs(store_path)
