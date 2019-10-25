@@ -127,7 +127,7 @@ class GPActive():
             if self.trained:
 
                 mean, variance = self.model.predict_y(np.array(self.X_test))
-                self.gp_rmse[0] = np.sqrt(mean_squared_ersror(mean, np.array(self.y_test)))
+                self.gp_rmse[0] = np.sqrt(mean_squared_error(mean, np.array(self.y_test)))
                 self.gp_mae[0] = mean_absolute_error(mean, np.array(self.y_test))
 
             else:
@@ -367,8 +367,8 @@ class GPActive():
 
                     mean, variance = self.model.predict_y(X_test)
 
-                    self.gp_rmse[itr] = np.sqrt(mean, y_test)
-                    self.gp_mae[itr] = np.sqrt(mean, y_test)
+                    self.gp_rmse[itr] = np.sqrt(mean_squared_error(mean, y_test))
+                    self.gp_mae[itr] = (mean_absolute_error(mean, y_test))
 
                 else:
 
