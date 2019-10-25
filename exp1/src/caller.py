@@ -1,5 +1,6 @@
 from ProcBucket import ProcBucket
 from utils import getfName
+import time
 import argparse
 import os
 
@@ -27,16 +28,23 @@ parser.add_argument(
 args = parser.parse_args()
 fname = getfName(args.datafile)
 print ('fname:', fname)
+
+# timer start
+print ("Start Timer.")
+start = time.time()
+
 proc_bucket = ProcBucket(args.jobs, args.stime)
 for lastKDays in [10, 20, 30, 50, 100, 200, 300]:
     for stepSize in [5]: # this is fixed for now
         store_path = f"./results/{fname}/{args.reg}/{lastKDays}/{stepSize}"
         if not os.path.exists(store_path):
             os.makedirs(store_path)
-        cmd = f"python interpol.py --reg {args.reg} --stepSize {stepSize} --lastKDays {lastKDays} --datafile {args.datafile}"
+        cmd = f"python called.py --reg {args.reg} --stepSize {stepSize} --lastKDays {lastKDays} --datafile {args.datafile}"
         return_string = proc_bucket.add_queue(cmd, saving_loc=store_path)
         print ()
         print (return_string) # prints the status
+return_string = proc_bucket.finalize()
+print(return_string) # prints final status
 
-proc_bucket.finalize()
-print('Finished!')
+end = time.time()
+print("Time Taken (s):", end - start)
