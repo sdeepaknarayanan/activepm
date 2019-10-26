@@ -166,6 +166,7 @@ def rmse_mae_over(
     return store, counter
 def setRegHy(reg):
     '''Sets relevant hyperparameters and regressor, based on the args passed'''
+    hyperparameters = [{}] # first use the default hyperparams :)
     if reg == 'svr':
         Regressor = SVR
     elif reg == 'knn':
@@ -173,7 +174,6 @@ def setRegHy(reg):
     elif reg == 'las':
         Regressor = Lasso
         alphas = [0.001, 0.01, 0.1, 1, 10, 100, 1000]
-        hyperparameters = []
         for alpha in (alphas):
             hy = { 'alpha': alpha }
             hyperparameters.append(hy)
