@@ -39,6 +39,7 @@ parser.add_argument(
     '--datafile', metavar='PATH', dest='datafile',
     help="data csv", type=str
 )
+parser.add_argument('-s', help="save results", action='store_true', default=False)
 
 # utility functions
 def rmse_mae_over(
@@ -78,12 +79,13 @@ def rmse_mae_over(
     y_col = ['PM2.5']
 
     allStations = df['station_id'].unique()
-    allStations.sort()
 
     kfout = KFold(n_splits=splits, random_state=0)
     kfin = KFold(n_splits=splits - 1, random_state=0)
 
-    store = {
+    outdf = pd.DataFrame()
+    for kout, (sts_ftrain_index, sts_test_index) in enumerate(kfout.split(allStations)):
+        store = {
                 'is_val_error': [],
                 'reg': [],
                 'stepSize': [],
@@ -95,8 +97,8 @@ def rmse_mae_over(
                 'rmse': [],
                 'mae': [],
             }
-    for kout, (sts_ftrain_index, sts_test_index) in enumerate(kfout.split(allStations)):
-        errors = [] # Add erros and deal with outer loop of kfold validation TODO
+        
+        # Finding the validation error
         for kin, (sts_train_index, sts_val_index) in enumerate(kfin.split(sts_ftrain_index)):
             
             # getting the correct stations
@@ -110,7 +112,7 @@ def rmse_mae_over(
             # plt.scatter(sts_train, [1]*len(sts_train), c='c', alpha=.6)
             # plt.show()
             
-            # getting the train, test, val sets accroding to stations
+            # getting the train and val sets accroding to stations
             test_df = df[df['station_id'].isin(sts_test)]
             val_df = df[df['station_id'].isin(sts_val)]
             train_df = df[df['station_id'].isin(sts_train)]
@@ -125,13 +127,28 @@ def rmse_mae_over(
                 # data before today
                 temporal_train_df = train_df[train_df['ts'] <= times[time_ix]]
                 temporal_val_df = val_df[val_df['ts'] == times[time_ix]]
-                temporal_test_df = test_df[test_df['ts'] == times[time_ix]]
+                temporal_test_df = test_df[test_df['ts'] == times[time_ix]] # for avoid calcs for empty tests
                 
                 # data after contextDays - lastKDays
                 temp = max(0, time_ix - lastKDays + 1)
                 temporal_train_df = temporal_train_df[temporal_train_df['ts'] >= times[temp]]
+                # print (temporal_train_df.shape)
+
+                # plotting the training data -- Debugging
+                # for ix, temp_df in zip("gck", [temporal_train_df, temporal_val_df, temporal_test_df]):
+                #     plt.scatter(temp_df["ts"].values, temp_df["station_id"].values, c=ix, alpha=0.3, s=30)
+                # plt.xlim(-0.03, 1.03)
+                # plt.ylim(1000, 1038)
+                # plt.axvline(x = times[time_ix], alpha=.5, c='r')
+                # plt.legend(["Today's Day", "Train", "Validation", "Test"])
+                # plt.title(f"Data fed for lastKDays={lastKDays}")
+                # plt.xlabel("Day # (Scaled)")
+                # plt.ylabel("Sation IDs")
+                # plt.savefig(f"{time_ix}.png", dpi=120)
+                # # plt.show()
+                # plt.close()
                 
-                # checking if dfs contain atleast one row, else continue
+                # checking if dfs contain atleast one, row, else continue
                 trainable = True
                 for temp_df in [temporal_train_df, temporal_val_df, temporal_test_df]:
                     if temp_df.shape[0] == 0:
@@ -144,14 +161,15 @@ def rmse_mae_over(
                     counter += 1
                     # initilize the regressor with hyperparams
                     reg = Regressor(**hy)
-                    reg.fit(train_df[X_cols], train_df[y_col])
-                    predictions = reg.predict(val_df[X_cols])
+                    reg.fit(temporal_train_df[X_cols], temporal_train_df[y_col])
+                    predictions = reg.predict(temporal_val_df[X_cols])
                     # print (predictions)
-                    # print (val_df[y_col].values)
+                    # print (temporal_val_df[y_col].values)
 
-                    rmse0 = rmse(predictions, val_df[y_col].values)
-                    mae0 = mae(predictions, val_df[y_col].values)
+                    rmse0 = rmse(predictions, temporal_val_df[y_col].values)
+                    mae0 = mae(predictions, temporal_val_df[y_col].values)
 
+                    # for getting the best_hy_ix later
                     store['is_val_error'].append(True)
                     store['reg'].append(Regressor.__name__)
                     store['stepSize'].append(stepSize)
@@ -162,8 +180,127 @@ def rmse_mae_over(
                     store['hy_ix'].append(hy_ix)
                     store['rmse'].append(rmse0)
                     store['mae'].append(mae0)
-        # TODO Find the errors in test set with chosen hyperparameter
-    return store, counter
+
+        val_err_df = pd.DataFrame(store)
+        outdf = outdf.append(val_err_df) # added to final dataframe to return + copy added
+
+        # print ("Validation done.")
+
+        # preparing for finding the test error
+        # taking the mean of rmse accross the time_ix dim.
+        tempstore = val_err_df.loc[0:0].copy()
+        tempstore.drop(index=tempstore.index, inplace=True) # getting an empty df with correct dtypes
+
+        for kInSelect in range(splits - 1):
+            tempdf2 = val_err_df[val_err_df['kin'] == kInSelect]
+            for hy_ix in range(len(hyperparameters)):
+                tempdf3 = tempdf2[tempdf2["hy_ix"] == hy_ix]
+                rmse_val, mae_val = tempdf3[['rmse', 'mae']].mean().copy()
+                tempstore.loc[tempstore.shape[0]] = tempdf3.loc[tempdf3.index[0]].copy() # randomly add
+                # editing the last row added, 
+                # no side effects as tempdf3 would never be used again
+                # print (tempstore)
+                tempstore.loc[tempstore.shape[0] - 1][['rmse', 'mae']] = rmse_val, mae_val
+                # print ("SHOULD BE A EMPTY") # it is, append copies
+                # print (outdf[outdf['rmse'] == rmse_val])
+        
+        assert tempstore.shape[0] == (splits-1) * len(hyperparameters)
+
+        # print ('Reduced on dimension essentially.')
+
+
+        # this for nested cross validation. the way we choose the best hyperparameters
+        # for the second experiment will be cleared later.
+        # TODO Discuss this with deepak.
+        # tempstore now contains mean rmse (across time_stamps)
+        # we now choose the best_hy_ix for a perticular kout. i.e.
+        # we will only have `splits` number of best_hy_ix
+
+        # TODO Need to assure that len(hyperparameters) >= num of splits
+        ix = tempstore['rmse'].idxmax()
+        best_hy_ix = tempstore.loc[ix]["hy_ix"]
+        hy = hyperparameters[best_hy_ix]
+
+        # find the error values on the test set
+        store = { k: [] for k in store.keys() } # reinit store
+        for time_ix in range(contextDays-1, totalDays, stepSize): # zero index
+
+            # getting the correct stations
+            sts_test = allStations[sts_test_index]
+            sts_train_val = allStations[sts_ftrain_index]
+            
+            # plotting for checking if things are correct
+            # plt.scatter(sts_test, [1]*len(sts_test), c='r', alpha=.6)
+            # plt.scatter(sts_val, [1]*len(sts_val), c='b', alpha=.6)
+            # plt.scatter(sts_train, [1]*len(sts_train), c='c', alpha=.6)
+            # plt.show()
+            
+            # getting the train, test, val sets accroding to stations
+            test_df = df[df['station_id'].isin(sts_test)]
+            train_val_df = df[df['station_id'].isin(sts_train_val)]
+
+            # data before today
+            temporal_train_val_df = train_val_df[train_val_df['ts'] <= times[time_ix]]
+            # temporal_val_df = val_df[val_df['ts'] == times[time_ix]]
+            temporal_test_df = test_df[test_df['ts'] == times[time_ix]]
+
+            # data after contextDays - lastKDays
+            temp = max(0, time_ix - lastKDays + 1)
+            temporal_train_val_df = temporal_train_val_df[temporal_train_val_df['ts'] >= times[temp]]
+
+            # avoid calcs # we have kouts, that are having test sets == 0
+            trainable = True
+            for temp_df in [temporal_train_val_df, temporal_test_df]:
+                if temp_df.shape[0] == 0:
+                    trainable = False
+            if not trainable:
+                print ()
+                print ()
+                print ("ONE OF THE TESTSETS FORMED BY THE OUTER KFOLD IS EMPTY!!!!!!")
+                print ()
+                print ()
+                continue
+
+            # plotting the training data -- Debugging
+            # for ix, temp_df in zip("ck", [temporal_train_val_df, temporal_test_df]):
+            #     plt.scatter(temp_df["ts"].values, temp_df["station_id"].values, c=ix, alpha=0.3, s=30)
+            # plt.xlim(-0.03, 1.03)
+            # plt.ylim(1000, 1038)
+            # plt.axvline(x = times[time_ix], alpha=.5, c='r')
+            # plt.legend(["Today's Day", "Train_Validation", "Test"])
+            # plt.title(f"Data fed for lastKDays={lastKDays}")
+            # plt.xlabel("Day # (Scaled)")
+            # plt.ylabel("Sation IDs")
+            # plt.savefig(f"{time_ix}.png", dpi=120)
+            # plt.show()
+            # plt.close()
+
+            # initilize the regressor with hyperparams
+            counter += 1
+            reg = Regressor(**hy)
+            reg.fit(temporal_train_val_df[X_cols], temporal_train_val_df[y_col])
+            predictions = reg.predict(temporal_test_df[X_cols])
+
+            rmse0 = rmse(predictions, temporal_test_df[y_col].values)
+            mae0 = mae(predictions, temporal_test_df[y_col].values)
+
+            # storing the results for test errors
+            store['is_val_error'].append(False)
+            store['reg'].append(Regressor.__name__)
+            store['stepSize'].append(stepSize)
+            store['lastKDays'].append(lastKDays)
+            store['kout'].append(kout)
+            store['kin'].append(-1) # doesn't make sense for this.
+            store['time_ix'].append(time_ix)
+            store['hy_ix'].append(hy_ix)
+            store['rmse'].append(rmse0)
+            store['mae'].append(mae0)
+        
+        test_err_df = pd.DataFrame(store)
+        outdf = outdf.append(test_err_df) # added to final dataframe to return
+
+    return outdf, counter
+
 def setRegHy(reg):
     '''Sets relevant hyperparameters and regressor, based on the args passed'''
     hyperparameters = [{}] # first use the default hyperparams :)
@@ -188,11 +325,16 @@ def setRegHy(reg):
 
 if __name__ == "__main__":
     args = parser.parse_args()
+    if not args.s: # warn
+        print()
+        print("NOT SAVING!!!!!!!!!!!!!")
+        print()
+
     print ("Args parsed. Training Started.")
     # setting relevant regressors and hyperparameters
     Regressor, hyperparameters = setRegHy(args.reg)
     start = time.time()
-    store, counter = rmse_mae_over(
+    results, counter = rmse_mae_over(
         args.stepSize,
         args.lastKDays,
         Regressor, # set by the function setRegHy above.
@@ -202,14 +344,14 @@ if __name__ == "__main__":
     end = time.time()
     print("Time Taken (s):", end - start)
     print("Trainings performed:", counter)
-    results = pd.DataFrame(store)
     print()
     print("RESULTS")
     print(results.head())
     fname = getfName(args.datafile)
     
-    # saving the the
-    store_path = f"./results/{fname}/{args.reg}/{args.lastKDays}/{args.stepSize}"
-    if not os.path.exists(store_path):
-        os.makedirs(store_path)
-    results.to_csv(store_path + '/results.csv', index=None)
+    # saving the results
+    if args.s:
+        store_path = f"./results/{fname}/{args.reg}/{args.lastKDays}/{args.stepSize}"
+        if not os.path.exists(store_path):
+            os.makedirs(store_path)
+        results.to_csv(store_path + '/results.csv', index=None)
