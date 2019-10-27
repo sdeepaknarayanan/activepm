@@ -48,7 +48,73 @@ class GPActive():
         ## First I am choosing by stations, it can't be the case that there is no data
         ## for a given station. So there can be no key error here. 
 
-        self.initialize_data()
+        
+        self.train = pd.concat([self.df.groupby('Station').get_group(station) for station in self.train_stations])
+        self.pool = pd.concat([self.df.groupby('Station').get_group(station) for station in self.pool_stations])
+        self.test = pd.concat([self.df.groupby('Station').get_group(station) for station in self.test_stations])
+
+        # get the unique timestamps 
+        # need to sort them to index into the timestamp data for the current day s
+        self.timestamps = self.df['Time'].unique()
+        self.timestamps.sort()
+        initial_timestamps = self.timestamps[:self.context_days + 1]
+
+
+        initial_train_data = []
+
+        for time in initial_timestamps: 
+            try:
+                temp = self.train.groupby('Time').get_group(time)
+                initial_train_data.append(temp)
+            
+            except KeyError:
+                continue
+
+
+        ##########################################################
+        #### The above can be avoided using the isin() method ####
+        ##########################################################
+        # This If-Else clause avoids a value error
+
+        if len(initial_train_data) > 0:
+            self.train = pd.concat( initial_train_data )
+            self.X_train = self.train[self.train_columns]
+            self.y_train = self.train[['PM2.5']]
+            self.is_trainable = True
+
+        else:
+            print("No initial train data\n")
+            self.is_trainable = False
+
+        initial_pool_data = []
+
+        for time in initial_timestamps:
+            try:
+                temp = self.pool.groupby('Time').get_group(time)
+                initial_pool_data.append(temp)
+            except KeyError:
+                continue
+
+        if len(initial_pool_data) > 0:
+            self.pool = pd.concat( initial_pool_data )
+            self.is_queryable = True
+
+        else:
+            print("No initial pool data\n")
+            self.is_queryable = False
+
+
+        try:
+            self.current_test = self.test.groupby('Time').get_group(self.timestamps[self.current_day])
+            self.X_test = self.current_test[self.train_columns]
+            self.y_test = self.current_test[['PM2.5']]
+            self.is_testable = True
+
+        except KeyError:
+            print("No initial test data\n")
+            self.is_testable = False 
+
+        self.queried_stations = []
 
         self.queried_stations = []
         self.gp_rmse = np.zeros(self.test_days + 1)
@@ -56,12 +122,12 @@ class GPActive():
 
         if self.is_trainable and self.is_testable:
 
-            is_trained = self.gp_train()
+            self.gp_train()
 
-            if is_trained:
+            if self.trained:
 
                 mean, variance = self.model.predict_y(np.array(self.X_test))
-                self.gp_rmse[0] = np.sqrt(mean_squared_ersror(mean, np.array(self.y_test)))
+                self.gp_rmse[0] = np.sqrt(mean_squared_error(mean, np.array(self.y_test)))
                 self.gp_mae[0] = mean_absolute_error(mean, np.array(self.y_test))
 
             else:
@@ -223,6 +289,7 @@ class GPActive():
             opt.minimize(self.model)
             self.trained = 1
 
+
         except:
             self.trained = 0
             print("CHOLESKY FAILED")
@@ -291,18 +358,17 @@ class GPActive():
                 print("\nPool DataFrame Shape", self.pool.shape)
                 print("\nTest DataFrame Shape", self.X_test.shape)
 
+                self.gp_train()
 
-                is_trained = self.gp_train()
-
-                if is_trained is True:
+                if self.trained:
 
                     X_test = np.array(self.X_test)
                     y_test = np.array(self.y_test)
 
                     mean, variance = self.model.predict_y(X_test)
 
-                    self.gp_rmse[itr] = np.sqrt(mean, y_test)
-                    self.gp_mae[itr] = np.sqrt(mean, y_test)
+                    self.gp_rmse[itr] = np.sqrt(mean_squared_error(mean, y_test))
+                    self.gp_mae[itr] = (mean_absolute_error(mean, y_test))
 
                 else:
 
@@ -311,76 +377,9 @@ class GPActive():
 
 
 
-    def initialize_data(self):
+    # def initialize_data(self):
 
 
-        self.current_day = self.context_days
-        self.train = pd.concat([self.df.groupby('Station').get_group(station) for station in self.train_stations])
-        self.pool = pd.concat([self.df.groupby('Station').get_group(station) for station in self.pool_stations])
-        self.test = pd.concat([self.df.groupby('Station').get_group(station) for station in self.test_stations])
-
-        # get the unique timestamps 
-        # need to sort them to index into the timestamp data for the current day s
-        self.timestamps = self.df['Time'].unique()
-        self.timestamps.sort()
-        initial_timestamps = self.timestamps[:self.context_days + 1]
-
-
-        initial_train_data = []
-
-        for time in initial_timestamps: 
-            try:
-                temp = self.train.groupby('Time').get_group(time)
-                initial_train_data.append(temp)
-            
-            except KeyError:
-                continue
-
-
-        ##########################################################
-        #### The above can be avoided using the isin() method ####
-        ##########################################################
-        # This If-Else clause avoids a value error
-
-        if len(initial_train_data) > 0:
-            self.train = pd.concat( initial_train_data )
-            self.X_train = self.train[self.train_columns]
-            self.y_train = self.train[['PM2.5']]
-            self.is_trainable = True
-
-        else:
-            print("No initial train data\n")
-            self.is_trainable = False
-
-        initial_pool_data = []
-
-        for time in initial_timestamps:
-            try:
-                temp = self.pool.groupby('Time').get_group(time)
-                initial_pool_data.append(temp)
-            except KeyError:
-                continue
-
-        if len(initial_pool_data) > 0:
-            self.pool = pd.concat( initial_pool_data )
-            self.is_queryable = True
-
-        else:
-            print("No initial pool data\n")
-            self.is_queryable = False
-
-
-        try:
-            self.current_test = self.test.groupby('Time').get_group(self.timestamps[self.current_day])
-            self.X_test = self.current_test[self.train_columns]
-            self.y_test = self.current_test[['PM2.5']]
-            self.is_testable = True
-
-        except KeyError:
-            print("No initial test data\n")
-            self.is_testable = False 
-
-        self.queried_stations = []
         
 
 
