@@ -300,8 +300,29 @@ def setRegHy(reg):
     hyperparameters = [{}] # first use the default hyperparams :)
     if reg == 'svr':
         Regressor = SVR
+        gammas = ['auto']#, 'scale']
+        C = [10**i for i in [-3, -2, 0, 1, 3, 5]]
+
+        for g in gammas:
+            for c in C:
+                hy = {
+                    'gamma': g,
+                    'C': c,
+                }
+                hyperparameters.append(hy)
+
     elif reg == 'knn':
         Regressor = KNeighborsRegressor
+        n_neighbors = [i for i in range(1, 13)]
+        weights=['distance']#, 'uniform'] # essentially idw
+        for n in n_neighbors:
+            for w in weights:
+                hy = {
+                    'n_neighbors': n,
+                    'weights': w
+                }
+                hyperparameters.append(hy)
+
     elif reg == 'las':
         Regressor = Lasso
         alphas = [0.001, 0.01, 0.1, 1, 10, 100, 1000]
