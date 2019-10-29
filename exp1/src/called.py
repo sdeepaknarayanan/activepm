@@ -50,14 +50,6 @@ def rmse_mae_over(
     datafile
     ):
     '''Finds the rmse and mae by doing nested cross validation over the dataset'''
-    # changeable stuff
-    stepSize = stepSize # sensor placement in every `stepSize` days
-    lastKDays = lastKDays # we forget data before k days
-    # hyperparameters - will be defined by the regressor chosen
-    Regressor = Regressor
-    hyperparameters = hyperparameters
-    datafile = datafile
-
     counter = 0
     splits = 6 # kfold nested cross-validation (Fixed)
     contextDays = 30 # This is a the amount of data (in days) to start with. (Fixed)
@@ -69,7 +61,7 @@ def rmse_mae_over(
 
 
     df = pd.read_csv(datafile)
-    df = df[df.columns[1:]]
+    df = df[df.columns[1:]] # assuming the first col is unlabled
     times = df['ts'].unique()
     times.sort()
     totalDays = len(times)
@@ -80,12 +72,12 @@ def rmse_mae_over(
 
     allStations = df['station_id'].unique()
 
-    kfout = KFold(n_splits=splits, random_state=0)
-    kfin = KFold(n_splits=splits - 1, random_state=0)
+    kfout = KFold(n_splits=splits, shuffle=False, random_state=0)
+    kfin = KFold(n_splits=splits - 1, shuffle=False, random_state=0)
 
     outdf = pd.DataFrame()
     for kout, (sts_ftrain_index, sts_test_index) in enumerate(kfout.split(allStations)):
-        store = {
+        store = { # this is for nest cross validation
                 'is_val_error': [],
                 'reg': [],
                 'stepSize': [],
@@ -123,7 +115,7 @@ def rmse_mae_over(
             # print(np.intersect1d(train_df['station_id'].unique(), test_df['station_id'].unique()))
             
             # getting the temporally relevant data
-            for time_ix in range(contextDays-1, totalDays, stepSize): # zero index
+            for time_ix in range(contextDays - 1, totalDays, stepSize): # zero index
                 # data before today
                 temporal_train_df = train_df[train_df['ts'] <= times[time_ix]]
                 temporal_val_df = val_df[val_df['ts'] == times[time_ix]]
@@ -132,7 +124,6 @@ def rmse_mae_over(
                 # data after contextDays - lastKDays
                 temp = max(0, time_ix - lastKDays + 1)
                 temporal_train_df = temporal_train_df[temporal_train_df['ts'] >= times[temp]]
-                # print (temporal_train_df.shape)
 
                 # plotting the training data -- Debugging
                 # for ix, temp_df in zip("gck", [temporal_train_df, temporal_val_df, temporal_test_df]):
@@ -160,11 +151,10 @@ def rmse_mae_over(
                 for hy_ix, hy in enumerate(hyperparameters):
                     counter += 1
                     # initilize the regressor with hyperparams
+                    # TODO if using GPFLOW, take care of Cholesky Decomp Failure
                     reg = Regressor(**hy)
                     reg.fit(temporal_train_df[X_cols], temporal_train_df[y_col])
                     predictions = reg.predict(temporal_val_df[X_cols])
-                    # print (predictions)
-                    # print (temporal_val_df[y_col].values)
 
                     rmse0 = rmse(predictions, temporal_val_df[y_col].values)
                     mae0 = mae(predictions, temporal_val_df[y_col].values)
@@ -182,7 +172,8 @@ def rmse_mae_over(
                     store['mae'].append(mae0)
 
         val_err_df = pd.DataFrame(store)
-        outdf = outdf.append(val_err_df) # added to final dataframe to return + copy added
+        # added to final dataframe to return + copy added
+        outdf = outdf.append(val_err_df, ignore_index=True)
 
         # print ("Validation done.")
 
@@ -190,6 +181,7 @@ def rmse_mae_over(
         # taking the mean of rmse accross the time_ix dim.
         tempstore = val_err_df.loc[0:0].copy()
         tempstore.drop(index=tempstore.index, inplace=True) # getting an empty df with correct dtypes
+        assert (tempstore.shape[0] == 0)
 
         for kInSelect in range(splits - 1):
             tempdf2 = val_err_df[val_err_df['kin'] == kInSelect]
@@ -200,9 +192,10 @@ def rmse_mae_over(
                 # editing the last row added, 
                 # no side effects as tempdf3 would never be used again
                 # print (tempstore)
-                tempstore.loc[tempstore.shape[0] - 1][['rmse', 'mae']] = rmse_val, mae_val
+                tempstore.loc[tempstore.shape[0] - 1][['rmse', 'mae', 'time_ix']] = rmse_val, mae_val, -1
                 # print ("SHOULD BE A EMPTY") # it is, append copies
                 # print (outdf[outdf['rmse'] == rmse_val])
+                # time_ix is not relevant
         
         assert tempstore.shape[0] == (splits-1) * len(hyperparameters)
 
@@ -217,7 +210,7 @@ def rmse_mae_over(
         # we will only have `splits` number of best_hy_ix
 
         # TODO Need to assure that len(hyperparameters) >= num of splits
-        ix = tempstore['rmse'].idxmax()
+        ix = tempstore['rmse'].idxmin()
         best_hy_ix = tempstore.loc[ix]["hy_ix"]
         hy = hyperparameters[best_hy_ix]
 
@@ -227,6 +220,7 @@ def rmse_mae_over(
 
             # getting the correct stations
             sts_test = allStations[sts_test_index]
+            # this means train + val in nested cross validation
             sts_train_val = allStations[sts_ftrain_index]
             
             # plotting for checking if things are correct
@@ -254,11 +248,11 @@ def rmse_mae_over(
                 if temp_df.shape[0] == 0:
                     trainable = False
             if not trainable:
-                print ()
-                print ()
-                print ("ONE OF THE TESTSETS FORMED BY THE OUTER KFOLD IS EMPTY!!!!!!")
-                print ()
-                print ()
+                # print ()
+                # print ()
+                # print ("ONE OF THE TESTSETS FORMED BY THE OUTER KFOLD IS EMPTY!!!!!!")
+                # print ()
+                # print ()
                 continue
 
             # plotting the training data -- Debugging
@@ -297,7 +291,7 @@ def rmse_mae_over(
             store['mae'].append(mae0)
         
         test_err_df = pd.DataFrame(store)
-        outdf = outdf.append(test_err_df) # added to final dataframe to return
+        outdf = outdf.append(test_err_df, ignore_index=True) # added to final dataframe to return
 
     return outdf, counter
 
