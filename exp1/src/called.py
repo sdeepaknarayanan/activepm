@@ -15,7 +15,7 @@ from sklearn.linear_model import Lasso
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, Matern
 from sklearn.neighbors import KNeighborsRegressor
-import xgboost
+# import xgboost
 from sklearn.svm import SVR
 
 from utils import mae, rmse, getfName
@@ -153,8 +153,8 @@ def rmse_mae_over(
                     # initilize the regressor with hyperparams
                     # TODO if using GPFLOW, take care of Cholesky Decomp Failure
                     reg = Regressor(**hy)
-                    reg.fit(temporal_train_df[X_cols], temporal_train_df[y_col])
-                    predictions = reg.predict(temporal_val_df[X_cols])
+                    reg.fit(temporal_train_df[X_cols].values, temporal_train_df[y_col].values.ravel())
+                    predictions = reg.predict(temporal_val_df[X_cols].values)
 
                     rmse0 = rmse(predictions, temporal_val_df[y_col].values)
                     mae0 = mae(predictions, temporal_val_df[y_col].values)
@@ -272,8 +272,8 @@ def rmse_mae_over(
             # initilize the regressor with hyperparams
             counter += 1
             reg = Regressor(**hy)
-            reg.fit(temporal_train_val_df[X_cols], temporal_train_val_df[y_col])
-            predictions = reg.predict(temporal_test_df[X_cols])
+            reg.fit(temporal_train_val_df[X_cols].values, temporal_train_val_df[y_col].values.ravel())
+            predictions = reg.predict(temporal_test_df[X_cols].values)
 
             rmse0 = rmse(predictions, temporal_test_df[y_col].values)
             mae0 = mae(predictions, temporal_test_df[y_col].values)
