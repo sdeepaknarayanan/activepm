@@ -71,9 +71,10 @@ def rmse_mae_over(
     y_col = ['PM2.5']
 
     allStations = df['station_id'].unique()
+    allStations.sort()
 
-    kfout = KFold(n_splits=splits, shuffle=False, random_state=0)
-    kfin = KFold(n_splits=splits - 1, shuffle=False, random_state=0)
+    kfout = KFold(n_splits=splits, shuffle=True, random_state=0)
+    kfin = KFold(n_splits=splits - 1, shuffle=True, random_state=0)
 
     outdf = pd.DataFrame()
     for kout, (sts_ftrain_index, sts_test_index) in enumerate(kfout.split(allStations)):
