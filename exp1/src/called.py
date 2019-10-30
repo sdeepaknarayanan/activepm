@@ -331,6 +331,16 @@ def setRegHy(reg):
             hyperparameters.append(hy)
     elif reg == 'xgb':
         Regressor = xgboost.XGBRFRegressor
+        rng = random.Random(42) # local random seed setting.
+        number_of_searches = 20
+        for i in range(number_of_searches):
+            hyperparam = {
+                'max_depth': rng.choice(depths),
+                'learning_rate': rng.choice(lr),
+                'n_estimators': rng.choice(estimators)
+            }
+            hyperparams.append(hyperparam)
+
         # hyperparameters = 
         # TODO we can have something like, if datapoints > 10000
         # use GPU, obviusly, for best timing, find this critical point

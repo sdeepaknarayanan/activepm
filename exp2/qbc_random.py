@@ -104,12 +104,12 @@ class ActiveLearning():
 
             print("Model not fit since no train data (or) no test data available\n")
 
-            self.qbc_rmse[0] = None
-            self.qbc_mae[0] = None
+            self.qbc_rmse[0] = np.nan
+            self.qbc_mae[0] = np.nan
 
-            for i in range(number_of_seeds):
-                self.random_rmse[i][0] = None
-                self.random_mae[i][0] = None
+            for i in range(self.number_of_seeds):
+                self.random_rmse[i][0] = np.nan
+                self.random_mae[i][0] = np.nan
 
                     
 
@@ -332,12 +332,15 @@ class ActiveLearning():
 
             else:
                 
-                self.qbc_rmse[itr] = None
-                self.qbc_mae[itr] = None
+                self.qbc_rmse[itr] = np.nan
+                self.qbc_mae[itr] = np.nan
                 
 
     def random_sampling(self):
 
+        self.is_trainable = None
+        self.is_testable = None
+        self.is_queryable = None
         self.initialize_data()
 
         for seed in range(self.number_of_seeds):
@@ -345,6 +348,7 @@ class ActiveLearning():
 
             assert(len(self.train_stations) == 6)
             assert(len(self.pool_stations) == 24)
+            assert(len(self.test_stations) == 6)
 
 
 
@@ -416,6 +420,7 @@ class ActiveLearning():
 
                     assert(self.X_test['Time'].unique()[0] == self.timestamps[self.current_day])
                     assert(X_train['Time'].unique().max() == self.timestamps[self.current_day])
+                    assert(self.X_test['Time'].unique().shape[0] == 1)
                     
                     print("\nTrain DataFrame Shape", X_train.shape)
                     print("\nPool DataFrame Shape", self.pool.shape)
@@ -436,8 +441,8 @@ class ActiveLearning():
 
                 else:
 
-                    self.random_rmse[seed][itr] = None
-                    self.random_mae[seed][itr] = None
+                    self.random_rmse[seed][itr] = np.nan
+                    self.random_mae[seed][itr] = np.nan
 
             self.initialize_data()
             print("\n Re - Initialized Dataset")
@@ -517,7 +522,6 @@ class ActiveLearning():
         self.test_stations = deepcopy(self.reset_test_stations)
         self.pool_stations = deepcopy(self.reset_pool_stations)
 
-        self.queried_stations = []
 
         if self.is_trainable and self.is_testable:
             for i in self.learners:
