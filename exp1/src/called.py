@@ -15,8 +15,8 @@ from sklearn.linear_model import Lasso
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, Matern
 from sklearn.neighbors import KNeighborsRegressor
-# import xgboost
-from sklearn.svm import SVR
+import xgboost
+from thundersvm import SVR
 
 from utils import mae, rmse, getfName
 
@@ -24,7 +24,7 @@ from utils import mae, rmse, getfName
 parser = argparse.ArgumentParser(
     description='Called Interpolator, saves relavant csvs in ')
 parser.add_argument(
-    '--reg', metavar='xgb|svr|knn|las|gp', dest='reg', default='knn',
+    '--reg', metavar='xgb|svr|knn|las|gp|idw|krg', dest='reg', default='knn',
     help="Regressors to use", type=str
 )
 parser.add_argument(
@@ -294,14 +294,17 @@ def rmse_mae_over(
         test_err_df = pd.DataFrame(store)
         outdf = outdf.append(test_err_df, ignore_index=True) # added to final dataframe to return
 
+        print(f"{kout + 1}th Outer KFold done.")
     return outdf, counter
 
 def setRegHy(reg):
     '''Sets relevant hyperparameters and regressor, based on the args passed'''
     hyperparameters = [{}] # first use the default hyperparams :)
+
     if reg == 'svr':
         Regressor = SVR
-        gammas = ['auto']#, 'scale']
+        hyperparameters = [] # SVR cries when we pass empty params
+        gammas = ['auto', 'scale']
         C = [10**i for i in [-3, -2, 0, 1, 3, 5]]
 
         for g in gammas:
@@ -314,7 +317,7 @@ def setRegHy(reg):
 
     elif reg == 'knn':
         Regressor = KNeighborsRegressor
-        n_neighbors = [i for i in range(1, 13)]
+        n_neighbors = [i for i in range(3, 20, 2)]
         weights=['distance']#, 'uniform'] # essentially idw
         for n in n_neighbors:
             for w in weights:
@@ -330,21 +333,23 @@ def setRegHy(reg):
         for alpha in (alphas):
             hy = { 'alpha': alpha }
             hyperparameters.append(hy)
+
     elif reg == 'xgb':
         Regressor = xgboost.XGBRFRegressor
-        rng = random.Random(42) # local random seed setting.
-        number_of_searches = 20
-        for i in range(number_of_searches):
-            hyperparam = {
-                'max_depth': rng.choice(depths),
-                'learning_rate': rng.choice(lr),
-                'n_estimators': rng.choice(estimators)
-            }
-            hyperparams.append(hyperparam)
+        # hyperparameters given to be searched by Deepak
+        depths = [1, 10, 50, 100, 300]
+        lrs = [ 0.01, 0.1, 1]
+        estimators = [10, 20, 80, 160]
+        for depth in depths:
+            for lr in lrs:
+                for estimator in estimators:
+                    hy = {
+                        'max_depth': depth,
+                        'learning_rate': lr,
+                        'n_estimators': estimator
+                    }
+                    hyperparameters.append(hy)
 
-        # hyperparameters = 
-        # TODO we can have something like, if datapoints > 10000
-        # use GPU, obviusly, for best timing, find this critical point
     else:
         raise ValueError("We need a predefined Regressor, for sane hyperparameters")
     return (Regressor, hyperparameters)
@@ -362,7 +367,7 @@ if __name__ == "__main__":
     start = time.time()
     results, counter = rmse_mae_over(
         args.stepSize,
-        args.lastKDays,
+        args.lastKDays, # svr changes this to be within 30
         Regressor, # set by the function setRegHy above.
         hyperparameters, # set by the function setRegHy above.
         args.datafile,
