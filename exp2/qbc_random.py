@@ -15,7 +15,7 @@ from sklearn.neighbors import KNeighborsRegressor
 from copy import deepcopy
 import matplotlib
 import traceback
-    
+from copy import deepcopy    
 
 
 class ActiveLearning():
@@ -341,14 +341,19 @@ class ActiveLearning():
         self.is_trainable = None
         self.is_testable = None
         self.is_queryable = None
-        self.initialize_data()
 
         for seed in range(self.number_of_seeds):
+
+            self.initialize_data()
+
 
 
             assert(len(self.train_stations) == 6)
             assert(len(self.pool_stations) == 24)
             assert(len(self.test_stations) == 6)
+
+            print("\n Re - Initialized Dataset")
+
 
 
 
@@ -444,8 +449,6 @@ class ActiveLearning():
                     self.random_rmse[seed][itr] = np.nan
                     self.random_mae[seed][itr] = np.nan
 
-            self.initialize_data()
-            print("\n Re - Initialized Dataset")
 
 
 

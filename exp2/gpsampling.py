@@ -13,6 +13,7 @@ import gpflow
 import tensorflow as tf
 import operator
 from sklearn.metrics import mean_squared_error, mean_absolute_error
+from copy import deepcopy    
 
 
 class GPActive():
@@ -123,6 +124,7 @@ class GPActive():
         #     print("No initial test data\n")
         #     self.is_testable = False 
 
+        self.trained = None
 
         self.queried_stations = []
         self.random_queried_stations = [[] for i in range(self.number_of_seeds)]
@@ -136,7 +138,9 @@ class GPActive():
 
 
         self.initialize_data()
-
+        print("INIT")
+        print(self.is_trainable, self.is_testable)
+        # self.gp_train()
         if self.is_trainable and self.is_testable:
 
             self.gp_train() # self.model and self.trained will change
@@ -311,7 +315,7 @@ class GPActive():
             for i in t_other:
                 time = time + i
 
-            combined = gpflow.kernels.Constant(input_dim = 1, active_dims = [4])*(gpflow.kernels.Matern52(input_dim = 2, active_dims = [3, 5], ARD=True) + gpflow.kernels.Matern32(input_dim = 2, active_dims = [3,5], ARD=True))
+            combined = gpflow.kernels.RBF(input_dim = 1, active_dims = [4])*(gpflow.kernels.Matern52(input_dim = 2, active_dims = [3, 5], ARD=True) + gpflow.kernels.Matern32(input_dim = 2, active_dims = [3,5], ARD=True))
             
             wsk = gpflow.kernels.RBF(input_dim = 2, active_dims = [6,7], ARD=True)
 
@@ -325,9 +329,10 @@ class GPActive():
             self.trained = True
 
 
-        except:
-            self.trained = False
-            print("CHOLESKY FAILED")
+        except Exception as e: print(e)
+
+            # self.trained = False
+            # print("CHOLESKY FAILED")
 
 
     def active_gp(self):
@@ -422,9 +427,11 @@ class GPActive():
         self.is_testable = None
         self.is_queryable = None
 
-        self.initialize_data()
 
         for seed in range(self.number_of_seeds):
+
+            self.initialize_data()
+
 
 
             assert(len(self.train_stations) == 6)
@@ -486,8 +493,8 @@ class GPActive():
 
                     training_data = pd.concat(training_data)
 
-                    X_train = training_data[self.train_columns]
-                    y_train = training_data[['PM2.5']]
+                    self.X_train = training_data[self.train_columns]
+                    self.y_train = training_data[['PM2.5']]
 
                     self.is_trainable = True
 
@@ -496,7 +503,7 @@ class GPActive():
 
                 if self.is_trainable and self.is_testable:
 
-
+                    # print(self.X_train['Time'].unique().max())
                     assert(self.X_test['Time'].unique()[0] == self.timestamps[self.current_day])
                     assert(self.X_train['Time'].unique().max() == self.timestamps[self.current_day])
 
@@ -558,8 +565,8 @@ class GPActive():
 
         if len(initial_train_data) > 0:
             self.train = pd.concat( initial_train_data )
-            X_train = self.train[self.train_columns]
-            y_train = self.train[['PM2.5']]
+            self.X_train = self.train[self.train_columns]
+            self.y_train = self.train[['PM2.5']]
             self.is_trainable = True
 
         else:
