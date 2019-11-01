@@ -1,0 +1,20 @@
+b'Args parsed. Training Started.
+1th Outer KFold done.
+2th Outer KFold done.
+3th Outer KFold done.
+4th Outer KFold done.
+5th Outer KFold done.
+6th Outer KFold done.
+Time Taken (s): 34597.02365016937
+Trainings performed: 30498
+
+RESULTS
+   is_val_error  reg  stepSize  ...  hy_ix        rmse         mae
+0          True  SVR         2  ...      0  181.410499  180.927046
+1          True  SVR         2  ...      1  181.374775  180.891714
+2          True  SVR         2  ...      2  178.772527  178.334183
+3          True  SVR         2  ...      3   43.133265   42.132584
+4          True  SVR         2  ...      4   60.693201   40.242717
+
+[5 rows x 10 columns]
+'
