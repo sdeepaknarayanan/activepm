@@ -16,7 +16,7 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, Matern
 from sklearn.neighbors import KNeighborsRegressor
 import xgboost
-from thundersvm import SVR
+# from thundersvm import SVR
 
 from utils import mae, rmse, getfName
 
@@ -49,6 +49,7 @@ def rmse_mae_over(
     hyperparameters,
     datafile
     ):
+    print("RMSE ")
     '''Finds the rmse and mae by doing nested cross validation over the dataset'''
     counter = 0
     splits = 6 # kfold nested cross-validation (Fixed)
@@ -78,6 +79,7 @@ def rmse_mae_over(
 
     outdf = pd.DataFrame()
     for kout, (sts_ftrain_index, sts_test_index) in enumerate(kfout.split(allStations)):
+        print("KOUT ", kout )
         store = { # this is for nest cross validation
                 'is_val_error': [],
                 'reg': [],
@@ -93,7 +95,7 @@ def rmse_mae_over(
         
         # Finding the validation error
         for kin, (sts_train_index, sts_val_index) in enumerate(kfin.split(sts_ftrain_index)):
-            
+            print("KIN", kin)
             # getting the correct stations
             sts_test = allStations[sts_test_index]
             sts_val = allStations[sts_ftrain_index[sts_val_index]]
@@ -117,6 +119,7 @@ def rmse_mae_over(
             
             # getting the temporally relevant data
             for time_ix in range(contextDays - 1, totalDays, stepSize): # zero index
+                print("time_ix", time_ix)
                 # data before today
                 temporal_train_df = train_df[train_df['ts'] <= times[time_ix]]
                 temporal_val_df = val_df[val_df['ts'] == times[time_ix]]
@@ -337,9 +340,9 @@ def setRegHy(reg):
     elif reg == 'xgb':
         Regressor = xgboost.XGBRegressor
         # hyperparameters given to be searched by Deepak
-        depths = [1, 10, 50, 100, 300]
-        lrs = [ 0.01, 0.1, 1]
-        estimators = [10, 20, 80, 160]
+        depths = [10, 50]
+        lrs = [0.01, 0.1, 1]
+        estimators = [10, 50]
         for depth in depths:
             for lr in lrs:
                 for estimator in estimators:
@@ -347,7 +350,8 @@ def setRegHy(reg):
                         'max_depth': depth,
                         'learning_rate': lr,
                         'n_estimators': estimator,
-                        "n_jobs": -1
+                        'gpu_id':0,
+                        'tree_method':'gpu_hist'
                     }
                     hyperparameters.append(hy)
 
