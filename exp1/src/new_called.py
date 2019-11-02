@@ -350,8 +350,7 @@ def setRegHy(reg):
                         'max_depth': depth,
                         'learning_rate': lr,
                         'n_estimators': estimator,
-                        'gpu_id':0,
-                        'tree_method':'gpu_hist'
+			'n_jobs':-1
                     }
                     hyperparameters.append(hy)
 
