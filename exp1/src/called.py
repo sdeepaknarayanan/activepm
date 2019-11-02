@@ -334,16 +334,17 @@ def setRegHy(reg):
     elif reg == 'xgb':
         Regressor = xgboost.XGBRFRegressor
         # hyperparameters given to be searched by Deepak
-        depths = [1, 10, 50, 100, 300]
-        lrs = [ 0.01, 0.1, 1]
-        estimators = [10, 20, 80, 160]
+        depths = [10, 50]
+        lrs = [0.01, 0.1, 1]
+        estimators = [10, 50]
         for depth in depths:
             for lr in lrs:
                 for estimator in estimators:
                     hy = {
                         'max_depth': depth,
                         'learning_rate': lr,
-                        'n_estimators': estimator
+                        'n_estimators': estimator,
+			'n_jobs': -1,
                     }
                     hyperparameters.append(hy)
 
