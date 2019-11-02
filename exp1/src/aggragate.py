@@ -16,7 +16,10 @@ def get_data(Pfolder):
             count += 1
             if count % 1000 == 0:
                 print (count)
-            temp = pd.read_csv(Pfolder)
+            temp = pd.read_csv(Pfolder).reindex(
+                columns=full_df.columns,
+                copy=False
+            )
             full_df = full_df.append(temp, ignore_index=True)
             return None
         else: # we ignore
