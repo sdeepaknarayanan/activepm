@@ -308,7 +308,7 @@ def setRegHy(reg):
 
         for c in C:
             hy = {
-               'C': c,
+                 'C': c,
             }
             hyperparameters.append(hy)
 
