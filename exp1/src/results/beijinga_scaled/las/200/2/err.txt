@@ -1,26 +1,61 @@
-b'Traceback (most recent call last):
-  File "/home/nipun.batra/anaconda3/envs/gpflow/lib/python3.7/site-packages/pandas/core/indexes/base.py", line 2897, in get_loc
-    return self._engine.get_loc(key)
-  File "pandas/_libs/index.pyx", line 107, in pandas._libs.index.IndexEngine.get_loc
-  File "pandas/_libs/index.pyx", line 131, in pandas._libs.index.IndexEngine.get_loc
-  File "pandas/_libs/hashtable_class_helper.pxi", line 1607, in pandas._libs.hashtable.PyObjectHashTable.get_item
-  File "pandas/_libs/hashtable_class_helper.pxi", line 1614, in pandas._libs.hashtable.PyObjectHashTable.get_item
-KeyError: \'ts\'
+b"called.py:196: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame
 
-During handling of the above exception, another exception occurred:
+See the caveats in the documentation: http://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  tempstore.loc[tempstore.shape[0] - 1][['rmse', 'mae', 'time_ix']] = rmse_val, mae_val, -1
+/home/nipun.batra/anaconda3/envs/gpflow/lib/python3.7/site-packages/pandas/core/series.py:1298: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame
 
-Traceback (most recent call last):
-  File "called.py", line 373, in <module>
-    args.datafile,
-  File "called.py", line 65, in rmse_mae_over
-    times = df[\'ts\'].unique()
-  File "/home/nipun.batra/anaconda3/envs/gpflow/lib/python3.7/site-packages/pandas/core/frame.py", line 2980, in __getitem__
-    indexer = self.columns.get_loc(key)
-  File "/home/nipun.batra/anaconda3/envs/gpflow/lib/python3.7/site-packages/pandas/core/indexes/base.py", line 2899, in get_loc
-    return self._engine.get_loc(self._maybe_cast_indexer(key))
-  File "pandas/_libs/index.pyx", line 107, in pandas._libs.index.IndexEngine.get_loc
-  File "pandas/_libs/index.pyx", line 131, in pandas._libs.index.IndexEngine.get_loc
-  File "pandas/_libs/hashtable_class_helper.pxi", line 1607, in pandas._libs.hashtable.PyObjectHashTable.get_item
-  File "pandas/_libs/hashtable_class_helper.pxi", line 1614, in pandas._libs.hashtable.PyObjectHashTable.get_item
-KeyError: \'ts\'
-'
+See the caveats in the documentation: http://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  self._set_labels(key, value)
+called.py:196: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame
+
+See the caveats in the documentation: http://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  tempstore.loc[tempstore.shape[0] - 1][['rmse', 'mae', 'time_ix']] = rmse_val, mae_val, -1
+/home/nipun.batra/anaconda3/envs/gpflow/lib/python3.7/site-packages/pandas/core/series.py:1298: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame
+
+See the caveats in the documentation: http://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  self._set_labels(key, value)
+called.py:196: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame
+
+See the caveats in the documentation: http://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  tempstore.loc[tempstore.shape[0] - 1][['rmse', 'mae', 'time_ix']] = rmse_val, mae_val, -1
+/home/nipun.batra/anaconda3/envs/gpflow/lib/python3.7/site-packages/pandas/core/series.py:1298: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame
+
+See the caveats in the documentation: http://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  self._set_labels(key, value)
+called.py:196: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame
+
+See the caveats in the documentation: http://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  tempstore.loc[tempstore.shape[0] - 1][['rmse', 'mae', 'time_ix']] = rmse_val, mae_val, -1
+/home/nipun.batra/anaconda3/envs/gpflow/lib/python3.7/site-packages/pandas/core/series.py:1298: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame
+
+See the caveats in the documentation: http://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  self._set_labels(key, value)
+called.py:196: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame
+
+See the caveats in the documentation: http://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  tempstore.loc[tempstore.shape[0] - 1][['rmse', 'mae', 'time_ix']] = rmse_val, mae_val, -1
+/home/nipun.batra/anaconda3/envs/gpflow/lib/python3.7/site-packages/pandas/core/series.py:1298: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame
+
+See the caveats in the documentation: http://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  self._set_labels(key, value)
+called.py:196: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame
+
+See the caveats in the documentation: http://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  tempstore.loc[tempstore.shape[0] - 1][['rmse', 'mae', 'time_ix']] = rmse_val, mae_val, -1
+/home/nipun.batra/anaconda3/envs/gpflow/lib/python3.7/site-packages/pandas/core/series.py:1298: SettingWithCopyWarning: 
+A value is trying to be set on a copy of a slice from a DataFrame
+
+See the caveats in the documentation: http://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+  self._set_labels(key, value)
+"
