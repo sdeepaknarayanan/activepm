@@ -304,16 +304,13 @@ def setRegHy(reg):
     if reg == 'svr':
         Regressor = SVR
         hyperparameters = [] # SVR cries when we pass empty params
-        gammas = ['auto', 'scale']
         C = [10**i for i in [-3, -2, 0, 1, 3, 5]]
 
-        for g in gammas:
-            for c in C:
-                hy = {
-                    'gamma': g,
-                    'C': c,
-                }
-                hyperparameters.append(hy)
+        for c in C:
+            hy = {
+               'C': c,
+            }
+            hyperparameters.append(hy)
 
     elif reg == 'knn':
         Regressor = KNeighborsRegressor
@@ -337,16 +334,17 @@ def setRegHy(reg):
     elif reg == 'xgb':
         Regressor = xgboost.XGBRFRegressor
         # hyperparameters given to be searched by Deepak
-        depths = [1, 10, 50, 100, 300]
-        lrs = [ 0.01, 0.1, 1]
-        estimators = [10, 20, 80, 160]
+        depths = [10, 50]
+        lrs = [0.01, 0.1, 1]
+        estimators = [10, 50]
         for depth in depths:
             for lr in lrs:
                 for estimator in estimators:
                     hy = {
                         'max_depth': depth,
                         'learning_rate': lr,
-                        'n_estimators': estimator
+                        'n_estimators': estimator,
+			'n_jobs': -1,
                     }
                     hyperparameters.append(hy)
 

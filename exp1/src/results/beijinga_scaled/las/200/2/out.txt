@@ -1,0 +1,20 @@
+b'Args parsed. Training Started.
+1th Outer KFold done.
+2th Outer KFold done.
+3th Outer KFold done.
+4th Outer KFold done.
+5th Outer KFold done.
+6th Outer KFold done.
+Time Taken (s): 345.91461849212646
+Trainings performed: 40334
+
+RESULTS
+   is_val_error    reg  stepSize  ...  hy_ix       rmse        mae
+0          True  Lasso         2  ...      0  48.800237  47.302236
+1          True  Lasso         2  ...      1  36.297620  35.026428
+2          True  Lasso         2  ...      2  36.893543  35.641557
+3          True  Lasso         2  ...      3  42.890525  41.792856
+4          True  Lasso         2  ...      4  48.800237  47.302236
+
+[5 rows x 10 columns]
+'
