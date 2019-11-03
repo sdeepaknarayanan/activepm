@@ -60,6 +60,11 @@ def active(train_days, i, j, isact):
                 'pool': sts_train,
             }
 
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    session = tf.Session(config=config)
+
+
     gp = GPActive(
                     df = df,
                     train_stations = list(station_split[i][j]['train']),
