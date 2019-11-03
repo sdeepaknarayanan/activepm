@@ -94,12 +94,12 @@ def active(learner):
 								    train_stations = list(station_split[i][j]['train']),
 								    pool_stations = list(station_split[i][j]['pool']),
 								    test_stations = list(station_split[i][j]['test']),
-								    context_days = 9,
-								    frequency = 5,
-								    test_days = 50,
-								    train_days = 20,
+								    context_days = 9 , # train_days - 1
+								    frequency = 30, # 
+								    test_days = 360,  # 
+								    train_days = 20, # 10, 20, 30
 								    number_to_query = 1,
-								    number_of_seeds=20,
+								    number_of_seeds= 8,
 								    fname=[i, j]
 								)
 	    		processes.append()

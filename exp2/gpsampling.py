@@ -351,11 +351,19 @@ class GPActive():
 
         for itr in range(1, self.test_days + 1):
 
+
             print("Current Day before update:", self.current_day)
             ##########################################################
             self._next()            # Update the current day
             ##########################################################
             print("\nCurrent Day after update:", self.current_day)
+
+            try:
+                self.timestamps[self.current_day]
+            except Exception as e:
+                print(e)
+                break
+
 
             if itr % self.frequency == 1:
 
@@ -369,6 +377,7 @@ class GPActive():
 
             else:
                 self.data_update_daily()
+            
 
             if self.current_day < self.train_days:
                 timestamps = self.timestamps[:self.current_day + 1]
@@ -406,9 +415,9 @@ class GPActive():
                 assert(self.X_test['Time'].unique()[0] == self.timestamps[self.current_day])
                 assert(self.X_train['Time'].unique().max() == self.timestamps[self.current_day])
 
-                print("\nTrain DataFrame Shape", self.X_train.shape)
-                print("\nPool DataFrame Shape", self.pool.shape)
-                print("\nTest DataFrame Shape", self.X_test.shape)
+                # print("\nTrain DataFrame Shape", self.X_train.shape)
+                # print("\nPool DataFrame Shape", self.pool.shape)
+                # print("\nTest DataFrame Shape", self.X_test.shape)
 
                 self.gp_train()
 
@@ -430,16 +439,17 @@ class GPActive():
                 self.gp_rmse[itr] = np.nan
                 self.gp_mae[itr] = np.nan
 
+            if itr % 10 == 0:
 
-            temp_store_path = f"results/intermediate_gp/{self.fname[0]}/{self.fname[1]}/{self.current_day}"
-            if not os.path.exists(temp_store_path):
-                os.makedirs(temp_store_path)
-            np.save(temp_store_path + "/rmse", self.gp_rmse)
-            np.save(temp_store_path + "/mae", self.gp_mae)
-            np.save(temp_store_path + "/stations", self.queried_stations)
+                temp_store_path = f"results/{self.train_days}/intermediate_gp/{self.fname[0]}_{self.fname[1]}/{self.current_day}"
+                if not os.path.exists(temp_store_path):
+                    os.makedirs(temp_store_path)
+                np.save(temp_store_path + "/rmse", self.gp_rmse)
+                np.save(temp_store_path + "/mae", self.gp_mae)
+                np.save(temp_store_path + "/stations", self.queried_stations)
 
 
-        store_path = f"results/final_gp/{self.fname[0]}/{self.fname[1]}"
+        store_path = f"results/{self.train_days}/final_gp/{self.fname[0]}_{self.fname[1]}"
         if not os.path.exists(store_path):
             os.makedirs(store_path)
         np.save(store_path + "/final_rmse", self.gp_rmse)
@@ -481,6 +491,15 @@ class GPActive():
                 self._next()            # Update the current day
                 ##########################################################
                 print("\nCurrent Day after update:", self.current_day)
+
+
+                try:
+                    self.timestamps[self.current_day]
+                except Exception as e:
+                    print(e)
+                    break
+            
+
 
 
                 if itr % self.frequency == 1:
@@ -537,9 +556,9 @@ class GPActive():
                     assert(self.X_test['Time'].unique()[0] == self.timestamps[self.current_day])
                     assert(self.X_train['Time'].unique().max() == self.timestamps[self.current_day])
 
-                    print("\nTrain DataFrame Shape", self.X_train.shape)
-                    print("\nPool DataFrame Shape", self.pool.shape)
-                    print("\nTest DataFrame Shape", self.X_test.shape)
+                    # print("\nTrain DataFrame Shape", self.X_train.shape)
+                    # print("\nPool DataFrame Shape", self.pool.shape)
+                    # print("\nTest DataFrame Shape", self.X_test.shape)
 
                     self.gp_train()
 
@@ -561,17 +580,21 @@ class GPActive():
                     self.gp_random_rmse[seed][itr] = np.nan
                     self.gp_random_mae[seed][itr] = np.nan
 
-                temp_store_path = f"results/intermediate_random_gp/{self.fname[0]}/{self.fname[1]}/{seed}/{self.current_day}"
+                temp_store_path = f"results/{self.train_days}/intermediate_random_gp/{self.fname[0]}_{self.fname[1]}/{seed}/{self.current_day}"
                 
-                if not os.path.exists(temp_store_path):
-                    os.makedirs(temp_store_path)
-                np.save(temp_store_path + "/rmse", self.gp_random_rmse[seed])
-                np.save(temp_store_path + "/mae", self.gp_random_mae[seed])
-                np.save(temp_store_path + "/stations", self.random_queried_stations[seed])
+
+
+                if itr % 10 == 0:
+                    
+                    if not os.path.exists(temp_store_path):
+                        os.makedirs(temp_store_path)
+                    np.save(temp_store_path + "/rmse", self.gp_random_rmse[seed])
+                    np.save(temp_store_path + "/mae", self.gp_random_mae[seed])
+                    np.save(temp_store_path + "/stations", self.random_queried_stations[seed])
 
 
         
-        store_path = f"results/final_random_gp/{self.fname[0]}/{self.fname[1]}"
+        store_path = f"results/{self.train_days}/final_random_gp/{self.fname[0]}_{self.fname[1]}"
         if not os.path.exists(store_path):
             os.makedirs(store_path)
         np.save(store_path + "/final_rmse", self.gp_random_rmse)
