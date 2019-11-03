@@ -29,7 +29,8 @@ class GPActive():
                 test_days,
                 train_days,
                 number_to_query,
-                number_of_seeds):
+                number_of_seeds,
+                save_model):
 
         self.df = df
         self.train_stations = train_stations
@@ -57,7 +58,7 @@ class GPActive():
         ## First I am choosing by stations, it can't be the case that there is no data
         ## for a given station. So there can be no key error here. 
 
-
+        self.save_model = save_model
         
         # self.train = pd.concat([self.df.groupby('Station').get_group(station) for station in self.train_stations])
         # self.pool = pd.concat([self.df.groupby('Station').get_group(station) for station in self.pool_stations])
@@ -131,14 +132,14 @@ class GPActive():
 
 
         # self.queried_stations = []
-        self.gp_rmse = np.ones(self.test_days + 1)
+        self.gp_rmse = np.zeros(self.test_days + 1)
         self.gp_mae = np.zeros(self.test_days + 1)
         self.gp_random_rmse = np.zeros((self.number_of_seeds, self.test_days + 1))
         self.gp_random_mae =  np.zeros((self.number_of_seeds, self.test_days + 1))
 
 
         self.initialize_data()
-        print("INIT")
+        print("INIT DONE")
         print(self.is_trainable, self.is_testable)
         # self.gp_train()
         if self.is_trainable and self.is_testable:
@@ -305,11 +306,11 @@ class GPActive():
             graph = tf.get_default_graph()
             gpflow.reset_default_session(graph=graph)
 
-            xy_matern_1 = gpflow.kernels.Matern52(input_dim=2, ARD=True, active_dims=[0, 1])
-            xy_matern_2 = gpflow.kernels.Matern52(input_dim=2, ARD=True, active_dims=[0, 1])
+            xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+            xy_matern_2 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
             
-            t_matern = gpflow.kernels.Matern52(input_dim=1, active_dims=[2])
-            t_other = [gpflow.kernels.Matern52(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2]) for i in range(3)]
+            t_matern = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
+            t_other = [gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2]) for i in range(5)]
             
             time = t_matern
             for i in t_other:
@@ -329,10 +330,9 @@ class GPActive():
             self.trained = True
 
 
-        except Exception as e: print(e)
-
-            # self.trained = False
-            # print("CHOLESKY FAILED")
+        except Exception as e: 
+            print(e)
+            self.trained = False
 
 
     def active_gp(self):
@@ -604,6 +604,8 @@ class GPActive():
         self.train_stations = deepcopy(self.reset_train_stations)
         self.test_stations = deepcopy(self.reset_test_stations)
         self.pool_stations = deepcopy(self.reset_pool_stations)
+
+    
 
 
 
