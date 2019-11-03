@@ -14,7 +14,7 @@ import tensorflow as tf
 import operator
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from copy import deepcopy    
-
+import os 
 
 class GPActive():
 
@@ -30,7 +30,8 @@ class GPActive():
                 train_days,
                 number_to_query,
                 number_of_seeds,
-                save_model):
+                fname = [None, None]
+                ):
 
         self.df = df
         self.train_stations = train_stations
@@ -55,10 +56,17 @@ class GPActive():
         self.train_columns.remove('PM2.5')  # we do not want train to have particulate matter data
         self.train_columns.remove('Station')  # we do not want to have the station data either
 
+
+        if fname[0] == None:
+            print("PLEASE PROVIDE FILE NAME")
+            print("EXITING")
+            return
+        else:
+            self.fname = fname
+
         ## First I am choosing by stations, it can't be the case that there is no data
         ## for a given station. So there can be no key error here. 
 
-        self.save_model = save_model
         
         # self.train = pd.concat([self.df.groupby('Station').get_group(station) for station in self.train_stations])
         # self.pool = pd.concat([self.df.groupby('Station').get_group(station) for station in self.pool_stations])
@@ -329,6 +337,10 @@ class GPActive():
             opt.minimize(self.model)
             self.trained = True
 
+            # saver = gpflow.saver.Saver()
+            # saver.save(filename, model)
+
+
 
         except Exception as e: 
             print(e)
@@ -417,6 +429,24 @@ class GPActive():
             else:
                 self.gp_rmse[itr] = np.nan
                 self.gp_mae[itr] = np.nan
+
+
+            temp_store_path = f"results/intermediate_gp/{self.fname[0]}/{self.fname[1]}/{self.current_day}"
+            if not os.path.exists(temp_store_path):
+                os.makedirs(temp_store_path)
+            np.save(temp_store_path + "/rmse", self.gp_rmse)
+            np.save(temp_store_path + "/mae", self.gp_mae)
+            np.save(temp_store_path + "/stations", self.queried_stations)
+
+
+        store_path = f"results/final_gp/{self.fname[0]}/{self.fname[1]}"
+        if not os.path.exists(store_path):
+            os.makedirs(store_path)
+        np.save(store_path + "/final_rmse", self.gp_rmse)
+        np.save(store_path + "/final_mae", self.gp_mae)
+        np.save(store_path + "/stations", self.queried_stations)
+
+
 
 
 
@@ -531,6 +561,26 @@ class GPActive():
                     self.gp_random_rmse[seed][itr] = np.nan
                     self.gp_random_mae[seed][itr] = np.nan
 
+                temp_store_path = f"results/intermediate_random_gp/{self.fname[0]}/{self.fname[1]}/{seed}/{self.current_day}"
+                
+                if not os.path.exists(temp_store_path):
+                    os.makedirs(temp_store_path)
+                np.save(temp_store_path + "/rmse", self.gp_random_rmse[seed])
+                np.save(temp_store_path + "/mae", self.gp_random_mae[seed])
+                np.save(temp_store_path + "/stations", self.random_queried_stations[seed])
+
+
+        
+        store_path = f"results/final_random_gp/{self.fname[0]}/{self.fname[1]}"
+        if not os.path.exists(store_path):
+            os.makedirs(store_path)
+        np.save(store_path + "/final_rmse", self.gp_random_rmse)
+        np.save(store_path + "/final_mae", self.gp_random_mae)
+        np.save(store_path + "/final_stations", self.random_queried_stations)
+
+
+
+
 
     def initialize_data(self):
 
@@ -605,7 +655,7 @@ class GPActive():
         self.test_stations = deepcopy(self.reset_test_stations)
         self.pool_stations = deepcopy(self.reset_pool_stations)
 
-    
+
 
 
 

@@ -11,12 +11,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import mean_absolute_error, mean_squared_error
-from sklearn.neighbors import KNeighborsRegressor
+import xgboost
 from copy import deepcopy
 import matplotlib
 import traceback
 from copy import deepcopy    
-
+import os
 
 class ActiveLearning():
 
@@ -31,8 +31,9 @@ class ActiveLearning():
             frequency,
             test_days,
             train_days,
+            number_to_query,
             number_of_seeds,
-            number_to_query
+            fname = [None, None]
         ):
 
         self.df = df
@@ -55,6 +56,13 @@ class ActiveLearning():
         ########################################
         ############# RESET ATTRIBUTES DONE ####
         ########################################
+
+        if fname[0] == None:
+            print("PLEASE PROVIDE FILE NAME")
+            print("EXITING")
+            return
+        else:
+            self.fname = fname
 
         self.current_day = context_days
         self.context_days = context_days
@@ -334,6 +342,22 @@ class ActiveLearning():
                 
                 self.qbc_rmse[itr] = np.nan
                 self.qbc_mae[itr] = np.nan
+
+            temp_store_path = f"results/intermediate_qbc/{self.fname[0]}/{self.fname[1]}/{self.current_day}"
+            if not os.path.exists(temp_store_path):
+                os.makedirs(temp_store_path)
+            np.save(temp_store_path + "/rmse", self.qbc_rmse)
+            np.save(temp_store_path + "/mae", self.qbc_mae)
+            np.save(temp_store_path + "/stations", self.queried_stations)
+
+
+        store_path = f"results/final_qbc/{self.fname[0]}/{self.fname[1]}"
+        if not os.path.exists(store_path):
+            os.makedirs(store_path)
+        np.save(store_path + "/final_rmse", self.qbc_rmse)
+        np.save(store_path + "/final_mae", self.qbc_mae)
+        np.save(store_path + "/stations", self.queried_stations)
+
                 
 
     def random_sampling(self):
@@ -352,7 +376,7 @@ class ActiveLearning():
             assert(len(self.pool_stations) == 24)
             assert(len(self.test_stations) == 6)
 
-            print("\n Re - Initialized Dataset")
+            liprint("\n Re - Initialized Dataset")
 
 
 
@@ -448,6 +472,25 @@ class ActiveLearning():
 
                     self.random_rmse[seed][itr] = np.nan
                     self.random_mae[seed][itr] = np.nan
+
+                temp_store_path = f"results/intermediate_random_qbc/{self.fname[0]}/{self.fname[1]}/{seed}/{self.current_day}"
+                
+                if not os.path.exists(temp_store_path):
+                    os.makedirs(temp_store_path)
+                np.save(temp_store_path + "/rmse", self.random_rmse[seed])
+                np.save(temp_store_path + "/mae", self.random_mae[seed])
+                np.save(temp_store_path + "/stations", self.random_queried_stations[seed])
+
+
+        
+        store_path = f"results/final_random_qbc/{self.fname[0]}/{self.fname[1]}"
+        if not os.path.exists(store_path):
+            os.makedirs(store_path)
+        np.save(store_path + "/final_rmse", self.random_rmse)
+        np.save(store_path + "/final_mae", self.random_mae)
+        np.save(store_path + "/final_stations", self.random_queried_stations)
+
+
 
 
 
