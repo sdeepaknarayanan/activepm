@@ -18,7 +18,6 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, Matern
 from sklearn.neighbors import KNeighborsRegressor
 import xgboost
-from thundersvm import SVR
 
 from utils import mae, rmse, getfName
 
@@ -270,21 +269,25 @@ def rmse_mae_over(
             # initilize the regressor with hyperparams
             counter += 1
             if Regressor.__name__ == "GPR":
+                # reset stuff
+                tf.reset_default_graph()
+                graph = tf.get_default_graph()
+                gpflow.reset_default_session(graph=graph)
+
                 # kernel magik
                 xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
                 xy_matern_2 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
                 t_matern = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
-                t_other = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2])+\
-                gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2])+\
-                gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2])+\
-                gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2])+\
-                gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2])
-                time = t_matern + t_other
+                t_other = [gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2]) for i in range(5)]
+                time = t_matern
+                for i in t_other:
+                    time = time + i
                 overall_kernel = (xy_matern_1 + xy_matern_2) * time
-
+                
                 # model init
+                # print (temporal_train_val_df[X_cols]) # we can specify cols for safety
                 reg = Regressor(
-                    temporal_train_val_df[X_cols].values,
+                    temporal_train_val_df[["latitude","longitude","ts"]].values,
                     temporal_train_val_df[y_col].values.ravel(),
                     kern = overall_kernel,
                     mean_function = None
@@ -295,23 +298,15 @@ def rmse_mae_over(
                 opt.minimize(reg)
 
                 # predict
-                predictions, variance = model.predict_y(X_test)
-
-                rmse0 = rmse(predictions, temporal_test_df[y_col].values)
-                mae0 = mae(predictions, temporal_test_df[y_col].values)
-
-                # reset stuff
-                tf.reset_default_graph()
-                graph = tf.get_default_graph()
-                gpflow.reset_default_session(graph=graph)
+                predictions, variance = reg.predict_y(temporal_test_df[["latitude","longitude","ts"]].values)
 
             else: 
                 reg = Regressor(**hy)
                 reg.fit(temporal_train_val_df[X_cols].values, temporal_train_val_df[y_col].values.ravel())
                 predictions = reg.predict(temporal_test_df[X_cols].values)
 
-                rmse0 = rmse(predictions, temporal_test_df[y_col].values)
-                mae0 = mae(predictions, temporal_test_df[y_col].values)
+            rmse0 = rmse(predictions, temporal_test_df[y_col].values)
+            mae0 = mae(predictions, temporal_test_df[y_col].values)
 
             # storing the results for test errors
             store['is_val_error'].append(False)
@@ -336,6 +331,7 @@ def setRegHy(reg):
     hyperparameters = [{}] # first use the default hyperparams :)
 
     if reg == 'svr':
+        from thundersvm import SVR
         Regressor = SVR
         hyperparameters = [] # SVR cries when we pass empty params
         C = [10**i for i in [-3, -2, 0, 1, 3, 5]]
