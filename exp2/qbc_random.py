@@ -327,6 +327,8 @@ class ActiveLearning():
 
                 except AssertionError:
                     print(X_train['Time'].unique().max() , self.timestamps[self.current_day])
+                assert(self.X_test['Time'].unique().shape[0] == 1)
+
 
                 # print("\nTrain DataFrame Shape", X_train.shape)
                 # print("\nPool DataFrame Shape", self.pool.shape)
@@ -386,7 +388,7 @@ class ActiveLearning():
             assert(len(self.pool_stations) == 24)
             assert(len(self.test_stations) == 6)
 
-            liprint("\n Re - Initialized Dataset")
+            print("\n Re - Initialized Dataset")
 
 
 
@@ -461,8 +463,21 @@ class ActiveLearning():
 
                 if self.is_trainable and self.is_testable:
 
-                    assert(self.X_test['Time'].unique()[0] == self.timestamps[self.current_day])
-                    assert(X_train['Time'].unique().max() == self.timestamps[self.current_day])
+
+                    try:
+
+                        assert(self.X_test['Time'].unique()[0] == self.timestamps[self.current_day])
+
+                        print("2nd")
+
+                        assert(X_train['Time'].unique().max() == self.timestamps[self.current_day])
+
+                    except AssertionError:
+                        print(X_train['Time'].unique().max() , self.timestamps[self.current_day])
+                        print("LOOK ABOVE")
+
+
+
                     assert(self.X_test['Time'].unique().shape[0] == 1)
                     
                     # print("\nTrain DataFrame Shape", X_train.shape)
