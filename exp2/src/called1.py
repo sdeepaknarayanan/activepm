@@ -29,7 +29,7 @@ parser.add_argument(
     help="one of 10 20 30", type=int
 )
 parser.add_argument('--act', metavar='INT', dest='isact', 
-    help="active or random"
+    help="active or random", type=int
 )
 
 
