@@ -288,7 +288,7 @@ def rmse_mae_over(
                     print ("Try to pass data to obj")
                     reg = Regressor(
                         temporal_train_val_df[["latitude","longitude","ts"]].values,
-                        temporal_train_val_df[y_col].values.ravel(),
+                        temporal_train_val_df[y_col].values,
                         kern = overall_kernel,
                         mean_function = None
                     )
@@ -302,6 +302,7 @@ def rmse_mae_over(
                     # predict
                     predictions, variance = reg.predict_y(temporal_test_df[["latitude","longitude","ts"]].values)
                     print ("Trained.")
+                    hy_ix = -1
                 except Exception as e: 
                     print ("not_trained.")
                     print(e)
