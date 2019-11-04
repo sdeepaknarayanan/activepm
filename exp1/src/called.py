@@ -334,9 +334,11 @@ def rmse_mae_over(
         print(f"{kout + 1}th Outer KFold done.")
     return outdf, counter
 
-def setRegHy(reg):
+def setRegHy(args):
     '''Sets relevant hyperparameters and regressor, based on the args passed'''
     hyperparameters = [{}] # first use the default hyperparams :)
+    reg = args.reg
+    lastKDays = args.lastKDays
 
     if reg == 'svr':
         from thundersvm import SVR
@@ -382,12 +384,15 @@ def setRegHy(reg):
                         'max_depth': depth,
                         'learning_rate': lr,
                         'n_estimators': estimator,
-			'n_jobs': -1,
+            'n_jobs': -1,
                     }
                     hyperparameters.append(hy)
 
     elif reg == 'gpST':
-        Regressor = gpflow.models.GPR
+        if lastKDays <= 30:
+            Regressor = gpflow.models.GPR
+        else : # sparse GP
+            Regressor = gpflow.models.SGPR
         config = tf.ConfigProto()
         config.gpu_options.allow_growth=True
         sess = tf.Session(config=config)
@@ -405,7 +410,7 @@ if __name__ == "__main__":
 
     print ("Args parsed. Training Started.")
     # setting relevant regressors and hyperparameters
-    Regressor, hyperparameters = setRegHy(args.reg)
+    Regressor, hyperparameters = setRegHy(arg)
     start = time.time()
     results, counter = rmse_mae_over(
         args.stepSize,
