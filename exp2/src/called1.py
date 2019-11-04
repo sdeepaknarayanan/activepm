@@ -29,7 +29,7 @@ parser.add_argument(
     help="one of 10 20 30", type=int
 )
 parser.add_argument('--act', metavar='INT', dest='isact', 
-    help="active or random"
+    help="active or random", type=int
 )
 
 
@@ -78,7 +78,7 @@ def active(train_days, i, j, isact):
                     number_of_seeds= 5,
                     fname=[i, j]
                 )
-
+    print(isact)
     if isact == 1:
         gp.active_gp()
     else:
