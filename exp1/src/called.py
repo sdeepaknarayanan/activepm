@@ -14,8 +14,6 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import KFold
 
 from sklearn.linear_model import Lasso
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF, Matern
 from sklearn.neighbors import KNeighborsRegressor
 import xgboost
 
@@ -269,36 +267,46 @@ def rmse_mae_over(
             # initilize the regressor with hyperparams
             counter += 1
             if Regressor.__name__ == "GPR":
-                # reset stuff
-                tf.reset_default_graph()
-                graph = tf.get_default_graph()
-                gpflow.reset_default_session(graph=graph)
+                try: # try training
+                    # reset stuff
+                    tf.reset_default_graph()
+                    graph = tf.get_default_graph()
+                    gpflow.reset_default_session(graph=graph)
 
-                # kernel magik
-                xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
-                xy_matern_2 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
-                t_matern = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
-                t_other = [gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2]) for i in range(5)]
-                time = t_matern
-                for i in t_other:
-                    time = time + i
-                overall_kernel = (xy_matern_1 + xy_matern_2) * time
-                
-                # model init
-                # print (temporal_train_val_df[X_cols]) # we can specify cols for safety
-                reg = Regressor(
-                    temporal_train_val_df[["latitude","longitude","ts"]].values,
-                    temporal_train_val_df[y_col].values.ravel(),
-                    kern = overall_kernel,
-                    mean_function = None
-                )
+                    # kernel magik
+                    xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                    xy_matern_2 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                    t_matern = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
+                    t_other = [gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2]) for i in range(5)]
+                    time = t_matern
+                    for i in t_other:
+                        time = time + i
+                    overall_kernel = (xy_matern_1 + xy_matern_2) * time
+                    
+                    # model init
+                    # print (temporal_train_val_df[X_cols]) # we can specify cols for safety
+                    print ("Try to pass data to obj")
+                    reg = Regressor(
+                        temporal_train_val_df[["latitude","longitude","ts"]].values,
+                        temporal_train_val_df[y_col].values,
+                        kern = overall_kernel,
+                        mean_function = None
+                    )
+                    print ("At least going in the reg obj")
 
-                # optimize
-                opt = gpflow.train.ScipyOptimizer()
-                opt.minimize(reg)
+                    # optimize
+                    opt = gpflow.train.ScipyOptimizer()
+                    opt.minimize(reg)
+                    print ("Optimization Succeeded")
 
-                # predict
-                predictions, variance = reg.predict_y(temporal_test_df[["latitude","longitude","ts"]].values)
+                    # predict
+                    predictions, variance = reg.predict_y(temporal_test_df[["latitude","longitude","ts"]].values)
+                    print ("Trained.")
+                    hy_ix = -1
+                except Exception as e: 
+                    print ("not_trained.")
+                    print(e)
+                    continue
 
             else: 
                 reg = Regressor(**hy)
