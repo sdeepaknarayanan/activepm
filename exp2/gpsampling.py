@@ -413,8 +413,11 @@ class GPActive():
 
 
                 assert(self.X_test['Time'].unique()[0] == self.timestamps[self.current_day])
-		print(self.X_train['Time'].unique().max(), self.timestamps[self.current_day])
-                #assert(self.X_train['Time'].unique().max() == self.timestamps[self.current_day])
+                print(self.X_train['Time'].unique().max(), self.timestamps[self.current_day])
+                try:
+                    assert(self.X_train['Time'].unique().max() == self.timestamps[self.current_day])
+                except AssertionError:
+                    print("LOOK ABOVE")
 
                 # print("\nTrain DataFrame Shape", self.X_train.shape)
                 # print("\nPool DataFrame Shape", self.pool.shape)
@@ -555,7 +558,9 @@ class GPActive():
 
                     # print(self.X_train['Time'].unique().max())
                     assert(self.X_test['Time'].unique()[0] == self.timestamps[self.current_day])
-                    assert(self.X_train['Time'].unique().max() == self.timestamps[self.current_day])
+                    print(self.X_train['Time'].unique().max(), self.timestamps[self.current_day])
+
+                    # assert(self.X_train['Time'].unique().max() == self.timestamps[self.current_day])
 
                     # print("\nTrain DataFrame Shape", self.X_train.shape)
                     # print("\nPool DataFrame Shape", self.pool.shape)
