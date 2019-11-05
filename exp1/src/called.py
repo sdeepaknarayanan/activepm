@@ -85,7 +85,7 @@ def rmse_mae_over(
             }
         
         # Finding the validation error if not gp
-        if Regressor.__name__ != "GPR":
+        if Regressor.__name__ not in ["GPR", "SVGP"]:
             for kin, (sts_train_index, sts_val_index) in enumerate(kfin.split(sts_ftrain_index)):
                 
                 # getting the correct stations
@@ -266,7 +266,7 @@ def rmse_mae_over(
 
             # initilize the regressor with hyperparams
             counter += 1
-            if Regressor.__name__ == "GPR":
+            if Regressor.__name__ in ["GPR", "SVGP"]:
                 try: # try training
                     # reset stuff
                     tf.reset_default_graph()
@@ -286,12 +286,28 @@ def rmse_mae_over(
                     # model init
                     # print (temporal_train_val_df[X_cols]) # we can specify cols for safety
                     print ("Try to pass data to obj")
-                    reg = Regressor(
-                        temporal_train_val_df[["latitude","longitude","ts"]].values,
-                        temporal_train_val_df[y_col].values,
-                        kern = overall_kernel,
-                        mean_function = None
-                    )
+                    X = temporal_train_val_df[["latitude","longitude","ts"]].values
+                    y = temporal_train_val_df[y_col].values
+                    if Regressor.__name__ == "GPR":
+                        reg = Regressor(
+                            X,
+                            y,
+                            kern = overall_kernel,
+                            mean_function = None
+                        )
+                    else: # sparse SVGP
+                        # we select randomly 50 positions.
+                        m = 30
+                        rng = np.random.RandomState(42)
+                        ixs = rng.choice(X.shape[0], size=m, replace=False)
+                        Z = X[ixs, :].copy()
+                        reg = Regressor(
+                            X,
+                            y,
+                            kern=overall_kernel,
+                            likelihood=gpflow.likelihoods.Gaussian(),
+                            Z=Z
+                        )
                     print ("At least going in the reg obj")
 
                     # optimize
@@ -392,7 +408,7 @@ def setRegHy(args):
         if lastKDays <= 30:
             Regressor = gpflow.models.GPR
         else : # sparse GP
-            Regressor = gpflow.models.SGPR
+            Regressor = gpflow.models.SVGP
         config = tf.ConfigProto()
         config.gpu_options.allow_growth=True
         sess = tf.Session(config=config)
@@ -410,7 +426,7 @@ if __name__ == "__main__":
 
     print ("Args parsed. Training Started.")
     # setting relevant regressors and hyperparameters
-    Regressor, hyperparameters = setRegHy(arg)
+    Regressor, hyperparameters = setRegHy(args)
     start = time.time()
     results, counter = rmse_mae_over(
         args.stepSize,
