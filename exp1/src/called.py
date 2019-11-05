@@ -23,7 +23,7 @@ from utils import mae, rmse, getfName
 parser = argparse.ArgumentParser(
     description='Called Interpolator, saves relavant csvs in ')
 parser.add_argument(
-    '--reg', metavar='xgb|svr|knn|las|gpST', dest='reg', default='knn',
+    '--reg', metavar='xgb|svr|knn|las|gpST|gpFULL', dest='reg', default='knn',
     help="Regressors to use", type=str
 )
 parser.add_argument(
@@ -46,7 +46,8 @@ def rmse_mae_over(
     lastKDays,
     Regressor,
     hyperparameters,
-    datafile
+    datafile,
+    reg_passed # only for distinguishing between gpST and gpFULL
     ):
     '''Finds the rmse and mae by doing nested cross validation over the dataset'''
     counter = 0
@@ -274,15 +275,28 @@ def rmse_mae_over(
                     gpflow.reset_default_session(graph=graph)
 
                     # kernel magik
-                    xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
-                    xy_matern_2 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
-                    t_matern = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
-                    t_other = [gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2]) for i in range(5)]
-                    time = t_matern
-                    for i in t_other:
-                        time = time + i
-                    overall_kernel = (xy_matern_1 + xy_matern_2) * time
-                    
+                    if reg_passed == 'gpST': # GP Spatial Temporal
+                        xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                        xy_matern_2 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                        t_matern = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
+                        t_other = [gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2]) for i in range(5)]
+                        time = t_matern
+                        for i in t_other:
+                            time = time + i
+                        overall_kernel = (xy_matern_1 + xy_matern_2) * time
+                    elif reg_passed == 'gpFULL': # GP Full Data
+                        xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                        xy_matern_2 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                        t_matern = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
+                        t_other = [gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2]) for i in range(5)]
+                        time = t_matern
+                        for i in t_other:
+                            time = time + i
+                        combined = gpflow.kernels.RBF(input_dim = 1, active_dims = [4])*(gpflow.kernels.Matern52(input_dim = 2, active_dims = [3, 5], ARD=True) + gpflow.kernels.Matern32(input_dim = 2, active_dims = [3,5], ARD=True))
+                        wsk = gpflow.kernels.RBF(input_dim = 2, active_dims = [6,7], ARD=True)
+                        weathk = gpflow.kernels.RBF(input_dim = 1, active_dims = [8])
+                        overall_kernel = (xy_matern_1 + xy_matern_2) * time * combined * wsk * weathk
+            
                     # model init
                     # print (temporal_train_val_df[X_cols]) # we can specify cols for safety
                     print ("Try to pass data to obj")
@@ -388,7 +402,7 @@ def setRegHy(args):
                     }
                     hyperparameters.append(hy)
 
-    elif reg == 'gpST':
+    elif reg in ['gpST', 'gpFULL']:
         if lastKDays <= 30:
             Regressor = gpflow.models.GPR
         else : # sparse GP
@@ -418,6 +432,7 @@ if __name__ == "__main__":
         Regressor, # set by the function setRegHy above.
         hyperparameters, # set by the function setRegHy above.
         args.datafile,
+        args.reg,
     )
     end = time.time()
     print("Time Taken (s):", end - start)
