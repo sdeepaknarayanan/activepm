@@ -11,7 +11,7 @@ from qbc_random import ActiveLearning
 import xgboost
 import multiprocessing
 import argparse
-
+import os
 
 # argparse
 parser = argparse.ArgumentParser(
@@ -32,9 +32,15 @@ parser.add_argument('--act', metavar='INT', dest='isact',
     help="active or random", type=int
 )
 
+parser.add_argument('--id', metavar='INT',dest ='id',
+    help="choose gppu", type=int)
 
 
-def active(train_days, i, j, isact):
+
+def active(train_days, i, j, isact, id):
+
+    os.environ["CUDA_VISIBLE_DEVICES"]=f"{id}"
+
     df = pd.read_csv("../../data/beijingb_scaled.csv", index_col = 0)
     df = df.rename(columns={'ts': 'Time', 'station_id': 'Station'})
 
@@ -88,4 +94,4 @@ def active(train_days, i, j, isact):
 if __name__ == '__main__':
     args = parser.parse_args()
     print(args.isact)
-    active(args.train_days, args.kout, args.kin, args.isact)
+    active(args.train_days, args.kout, args.kin, args.isact, args.id)
