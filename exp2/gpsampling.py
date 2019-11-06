@@ -30,7 +30,8 @@ class GPActive():
                 train_days,
                 number_to_query,
                 number_of_seeds,
-                fname = [None, None]
+                fname = [None, None],
+                qbc_choice = False 
                 ):
 
         self.df = df
@@ -63,6 +64,16 @@ class GPActive():
             return
         else:
             self.fname = fname
+
+        self.qbc_choice = qbc_choice
+
+        if self.qbc_choice:
+            path  = f"results/{self.train_days}/final_qbc/{self.fname[0]}_{self.fname[1]}/stations.npy"
+            self.qbc_stations = np.load(path)
+
+        else:
+            self.qbc_stations = None
+
 
         ## First I am choosing by stations, it can't be the case that there is no data
         ## for a given station. So there can be no key error here. 
@@ -367,7 +378,15 @@ class GPActive():
 
             if itr % self.frequency == 1:
 
-                stations_to_add = self.max_variance_sampling()
+                if self.qbc_choice:
+                    stations_to_add = self.qbc_stations[0]
+                    self.qbc_stations = self.qbc_stations[1:]
+                    self.queried_stations.append(stations_to_add)
+                    if stations_to_add is not None:
+                        stations_to_add = [stations_to_add]
+
+                else:
+                    stations_to_add = self.max_variance_sampling()
 
                 if stations_to_add is not None:
                     self.query_update(stations_to_add)
@@ -448,20 +467,45 @@ class GPActive():
 
             if itr % 10 == 0:
 
-                temp_store_path = f"results/{self.train_days}/intermediate_gp/{self.fname[0]}_{self.fname[1]}/{self.current_day}"
-                if not os.path.exists(temp_store_path):
-                    os.makedirs(temp_store_path)
-                np.save(temp_store_path + "/rmse", self.gp_rmse)
-                np.save(temp_store_path + "/mae", self.gp_mae)
-                np.save(temp_store_path + "/stations", self.queried_stations)
+                if not self.qbc_choice:
+
+                    temp_store_path = f"results/{self.train_days}/intermediate_gp/{self.fname[0]}_{self.fname[1]}/{self.current_day}"
+                    if not os.path.exists(temp_store_path):
+                        os.makedirs(temp_store_path)
+                    np.save(temp_store_path + "/rmse", self.gp_rmse)
+                    np.save(temp_store_path + "/mae", self.gp_mae)
+                    np.save(temp_store_path + "/stations", self.queried_stations)
+
+                else:
+
+                    temp_store_path = f"results/{self.train_days}/intermediate_gp_qbcs/{self.fname[0]}_{self.fname[1]}/{self.current_day}"
+                    if not os.path.exists(temp_store_path):
+                        os.makedirs(temp_store_path)
+                    np.save(temp_store_path + "/rmse", self.gp_rmse)
+                    np.save(temp_store_path + "/mae", self.gp_mae)
+                    np.save(temp_store_path + "/stations", self.queried_stations)
 
 
-        store_path = f"results/{self.train_days}/final_gp/{self.fname[0]}_{self.fname[1]}"
-        if not os.path.exists(store_path):
-            os.makedirs(store_path)
-        np.save(store_path + "/final_rmse", self.gp_rmse)
-        np.save(store_path + "/final_mae", self.gp_mae)
-        np.save(store_path + "/stations", self.queried_stations)
+
+        if not self.qbc_choice:
+
+            store_path = f"results/{self.train_days}/final_gp/{self.fname[0]}_{self.fname[1]}"
+            if not os.path.exists(store_path):
+                os.makedirs(store_path)
+            np.save(store_path + "/final_rmse", self.gp_rmse)
+            np.save(store_path + "/final_mae", self.gp_mae)
+            np.save(store_path + "/stations", self.queried_stations)
+
+        else:
+
+            temp_store_path = f"results/{self.train_days}/final_gp_qbcs/{self.fname[0]}_{self.fname[1]}/{self.current_day}"
+            if not os.path.exists(temp_store_path):
+                os.makedirs(temp_store_path)
+            np.save(temp_store_path + "/rmse", self.gp_rmse)
+            np.save(temp_store_path + "/mae", self.gp_mae)
+            np.save(temp_store_path + "/stations", self.queried_stations)
+
+
 
 
 
