@@ -23,7 +23,7 @@ from utils import mae, rmse, getfName
 parser = argparse.ArgumentParser(
     description='Called Interpolator, saves relavant csvs in ')
 parser.add_argument(
-    '--reg', metavar='xgb|svr|knn|las|gpST', dest='reg', default='knn',
+    '--reg', metavar='xgb|svr|knn|las|gpST|gpFULL', dest='reg', default='knn',
     help="Regressors to use", type=str
 )
 parser.add_argument(
@@ -46,7 +46,8 @@ def rmse_mae_over(
     lastKDays,
     Regressor,
     hyperparameters,
-    datafile
+    datafile,
+    reg_passed # only for distinguishing between gpST and gpFULL
     ):
     '''Finds the rmse and mae by doing nested cross validation over the dataset'''
     counter = 0
@@ -85,7 +86,7 @@ def rmse_mae_over(
             }
         
         # Finding the validation error if not gp
-        if Regressor.__name__ != "GPR":
+        if Regressor.__name__ not in ["GPR", "SVGP"]:
             for kin, (sts_train_index, sts_val_index) in enumerate(kfin.split(sts_ftrain_index)):
                 
                 # getting the correct stations
@@ -266,7 +267,7 @@ def rmse_mae_over(
 
             # initilize the regressor with hyperparams
             counter += 1
-            if Regressor.__name__ == "GPR":
+            if Regressor.__name__ in ["GPR", "SVGP"]:
                 try: # try training
                     # reset stuff
                     tf.reset_default_graph()
@@ -274,24 +275,53 @@ def rmse_mae_over(
                     gpflow.reset_default_session(graph=graph)
 
                     # kernel magik
-                    xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
-                    xy_matern_2 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
-                    t_matern = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
-                    t_other = [gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2]) for i in range(5)]
-                    time = t_matern
-                    for i in t_other:
-                        time = time + i
-                    overall_kernel = (xy_matern_1 + xy_matern_2) * time
-                    
+                    if reg_passed == 'gpST': # GP Spatial Temporal
+                        xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                        xy_matern_2 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                        t_matern = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
+                        t_other = [gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2]) for i in range(5)]
+                        time = t_matern
+                        for i in t_other:
+                            time = time + i
+                        overall_kernel = (xy_matern_1 + xy_matern_2) * time
+                    elif reg_passed == 'gpFULL': # GP Full Data
+                        xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                        xy_matern_2 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                        t_matern = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
+                        t_other = [gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2]) for i in range(5)]
+                        time = t_matern
+                        for i in t_other:
+                            time = time + i
+                        combined = gpflow.kernels.RBF(input_dim = 1, active_dims = [4])*(gpflow.kernels.Matern52(input_dim = 2, active_dims = [3, 5], ARD=True) + gpflow.kernels.Matern32(input_dim = 2, active_dims = [3,5], ARD=True))
+                        wsk = gpflow.kernels.RBF(input_dim = 2, active_dims = [6,7], ARD=True)
+                        weathk = gpflow.kernels.RBF(input_dim = 1, active_dims = [8])
+                        overall_kernel = (xy_matern_1 + xy_matern_2) * time * combined * wsk * weathk
+            
                     # model init
                     # print (temporal_train_val_df[X_cols]) # we can specify cols for safety
                     print ("Try to pass data to obj")
-                    reg = Regressor(
-                        temporal_train_val_df[["latitude","longitude","ts"]].values,
-                        temporal_train_val_df[y_col].values,
-                        kern = overall_kernel,
-                        mean_function = None
-                    )
+                    X = temporal_train_val_df[["latitude","longitude","ts"]].values
+                    y = temporal_train_val_df[y_col].values
+                    if Regressor.__name__ == "GPR":
+                        reg = Regressor(
+                            X,
+                            y,
+                            kern = overall_kernel,
+                            mean_function = None
+                        )
+                    else: # sparse SVGP
+                        # we select randomly 50 positions.
+                        m = 30
+                        rng = np.random.RandomState(42)
+                        ixs = rng.choice(X.shape[0], size=m, replace=False)
+                        Z = X[ixs, :].copy()
+                        reg = Regressor(
+                            X,
+                            y,
+                            kern=overall_kernel,
+                            likelihood=gpflow.likelihoods.Gaussian(),
+                            Z=Z
+                        )
                     print ("At least going in the reg obj")
 
                     # optimize
@@ -388,11 +418,11 @@ def setRegHy(args):
                     }
                     hyperparameters.append(hy)
 
-    elif reg == 'gpST':
+    elif reg in ['gpST', 'gpFULL']:
         if lastKDays <= 30:
             Regressor = gpflow.models.GPR
         else : # sparse GP
-            Regressor = gpflow.models.SGPR
+            Regressor = gpflow.models.SVGP
         config = tf.ConfigProto()
         config.gpu_options.allow_growth=True
         sess = tf.Session(config=config)
@@ -410,7 +440,7 @@ if __name__ == "__main__":
 
     print ("Args parsed. Training Started.")
     # setting relevant regressors and hyperparameters
-    Regressor, hyperparameters = setRegHy(arg)
+    Regressor, hyperparameters = setRegHy(args)
     start = time.time()
     results, counter = rmse_mae_over(
         args.stepSize,
@@ -418,6 +448,7 @@ if __name__ == "__main__":
         Regressor, # set by the function setRegHy above.
         hyperparameters, # set by the function setRegHy above.
         args.datafile,
+        args.reg,
     )
     end = time.time()
     print("Time Taken (s):", end - start)
