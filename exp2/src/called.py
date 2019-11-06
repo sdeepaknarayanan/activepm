@@ -54,8 +54,9 @@ def active(learner):
         gp_objects = {i:{j:{k:0 for k in [10, 20 ,30]} for j in station_split[i]} for i in station_split}
 
         processes = []
-
+        processes_1 = []
         for i in station_split:
+            processes = []
             for j in station_split[i]:
                 for train_days in [10, 20, 30]:
                     gp_objects[i][j] = GPActive(
@@ -72,11 +73,12 @@ def active(learner):
                                         fname=[i, j]
                                     )
 
-                processes.append(multiprocessing.Process(target=gp_objects[i][j][train_days].active_gp, args=()))
-        for proc in processes:
-            proc.start()
-        for proc in processes:
-            proc.join()
+                    processes.append(multiprocessing.Process(target=gp_objects[i][j][train_days].active_gp, args=()))
+            for proc in processes:
+                proc.start()
+            for proc in processes:
+                proc.join()
+
 
 
 
@@ -118,7 +120,8 @@ def active(learner):
                                         fname = [i, j]
                                     )
 
-                    processes.append(multiprocessing.Process(target=qbc_objects[i][j][train_days].querybycommittee, args=()))
+                    ## Edit RANDOM SAMPLING FROM PREVIOUS COMMIT
+                    processes.append(multiprocessing.Process(target=qbc_objects[i][j][train_days].random_sampling, args=()))
                 for proc in processes:
                     proc.start()
 

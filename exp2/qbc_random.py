@@ -33,7 +33,8 @@ class ActiveLearning():
             train_days,
             number_to_query,
             number_of_seeds,
-            fname = [None, None]
+            fname = [None, None],
+            gp_choice = False
         ):
 
         self.df = df
@@ -91,6 +92,15 @@ class ActiveLearning():
         self.random_rmse = np.zeros((self.number_of_seeds, self.test_days + 1))
         self.random_mae =  np.zeros((self.number_of_seeds, self.test_days + 1))
 
+        self.gp_choice = gp_choice
+
+        if self.gp_choice:
+            path  = f"results/{self.train_days}/final_gp/{self.fname[0]}_{self.fname[1]}/stations.npy"
+            self.gp_stations = np.load(path)
+
+        else:
+            self.gp_stations = None
+
 
         if self.is_trainable and self.is_testable:
 
@@ -118,6 +128,8 @@ class ActiveLearning():
             for i in range(self.number_of_seeds):
                 self.random_rmse[i][0] = np.nan
                 self.random_mae[i][0] = np.nan
+
+
 
                     
 
@@ -267,7 +279,17 @@ class ActiveLearning():
 
             if itr % self.frequency == 1:
 
-                stations_to_add = self.max_variance_sampling()
+                if self.gp_choice:
+                    stations_to_add = self.gp_stations[0]
+                    self.gp_stations = self.gp_stations[1:]
+
+                    self.queried_stations.append(stations_to_add)
+                    if stations_to_add is not None:
+                        stations_to_add = [stations_to_add]
+
+                    ### Not completely correct - need to account for pool stations not being present
+                else:
+                    stations_to_add = self.max_variance_sampling()
 
                 if stations_to_add is not None:
                     self.query_update(stations_to_add)
@@ -355,20 +377,42 @@ class ActiveLearning():
 
             if itr % 10 == 0:
 
-                temp_store_path = f"results/{self.train_days}/intermediate_qbc/{self.fname[0]}_{self.fname[1]}/{self.current_day}"
-                if not os.path.exists(temp_store_path):
-                    os.makedirs(temp_store_path)
-                np.save(temp_store_path + "/rmse", self.qbc_rmse)
-                np.save(temp_store_path + "/mae", self.qbc_mae)
-                np.save(temp_store_path + "/stations", self.queried_stations)
+                if not self.gp_choice:
 
-        
-        store_path = f"results/{self.train_days}/final_qbc/{self.fname[0]}_{self.fname[1]}"
-        if not os.path.exists(store_path):
-            os.makedirs(store_path)
-        np.save(store_path + "/final_rmse", self.qbc_rmse)
-        np.save(store_path + "/final_mae", self.qbc_mae)
-        np.save(store_path + "/stations", self.queried_stations)
+                    temp_store_path = f"results/{self.train_days}/intermediate_qbc/{self.fname[0]}_{self.fname[1]}/{self.current_day}"
+                    if not os.path.exists(temp_store_path):
+                        os.makedirs(temp_store_path)
+                    np.save(temp_store_path + "/rmse", self.qbc_rmse)
+                    np.save(temp_store_path + "/mae", self.qbc_mae)
+                    np.save(temp_store_path + "/stations", self.queried_stations)
+
+                else:
+                    temp_store_path = f"results/{self.train_days}/intermediate_qbc_gps/{self.fname[0]}_{self.fname[1]}/{self.current_day}"
+                    if not os.path.exists(temp_store_path):
+                        os.makedirs(temp_store_path)
+                    np.save(temp_store_path + "/rmse", self.qbc_rmse)
+                    np.save(temp_store_path + "/mae", self.qbc_mae)
+                    np.save(temp_store_path + "/stations", self.queried_stations)
+
+
+
+        if not self.gp_choice:
+            store_path = f"results/{self.train_days}/final_qbc/{self.fname[0]}_{self.fname[1]}"
+            if not os.path.exists(store_path):
+                os.makedirs(store_path)
+            np.save(store_path + "/final_rmse", self.qbc_rmse)
+            np.save(store_path + "/final_mae", self.qbc_mae)
+            np.save(store_path + "/stations", self.queried_stations)
+
+        else:
+            store_path = f"results/{self.train_days}/final_qbc_gps/{self.fname[0]}_{self.fname[1]}"
+            if not os.path.exists(store_path):
+                os.makedirs(store_path)
+            np.save(store_path + "/final_rmse", self.qbc_rmse)
+            np.save(store_path + "/final_mae", self.qbc_mae)
+            np.save(store_path + "/stations", self.queried_stations)
+
+
 
                 
 

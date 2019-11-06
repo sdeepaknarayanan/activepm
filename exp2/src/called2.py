@@ -77,10 +77,12 @@ def active(train_days, i, j, isact):
                         train_days = train_days,
                         number_of_seeds = 10,
                         number_to_query = 1,
-                        fname = [i, j]
+                        fname = [i, j],
+                        gp_choice = True
                         )
 
     print(isact)
+    
     if isact == 1:
         qbc.querybycommittee()
     else:
