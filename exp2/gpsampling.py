@@ -513,16 +513,28 @@ class GPActive():
 
     def random_sampling(self):
 
-        self.trained = False
-        self.is_trainable = None
-        self.is_testable = None
-        self.is_queryable = None
+        temp_path = f"results/{self.train_days}/final_random_gp/{self.fname[0]}_{self.fname[1]}"
+        if os.path.exists(temp_path):
+            return
 
-
+        # don't run for already calced results
+        max_seed = None
         for seed in range(self.number_of_seeds):
+            temp_path = f"results/{self.train_days}/intermediate_random_gp/{self.fname[0]}_{self.fname[1]}/{seed}"
+            if os.path.exists(temp_path):
+                max_seed = seed
+        
+        if max_seed is None:
+            max_seed = 0
+
+        for seed in range(max_seed, self.number_of_seeds):
+            
+            self.trained = False
+            self.is_trainable = None
+            self.is_testable = None
+            self.is_queryable = None
 
             self.initialize_data()
-
 
 
             assert(len(self.train_stations) == 6)
