@@ -419,10 +419,10 @@ def setRegHy(args):
                     hyperparameters.append(hy)
 
     elif reg in ['gpST', 'gpFULL']:
-        if lastKDays <= 30:
-            Regressor = gpflow.models.GPR
-        else : # sparse GP
-            Regressor = gpflow.models.SVGP
+        # if lastKDays <= 30:
+        Regressor = gpflow.models.GPR
+        # else : # sparse GP
+            # Regressor = gpflow.models.SVGP
         config = tf.ConfigProto()
         config.gpu_options.allow_growth=True
         sess = tf.Session(config=config)
