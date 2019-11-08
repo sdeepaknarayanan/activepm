@@ -39,6 +39,7 @@ parser.add_argument(
     help="data csv", type=str
 )
 parser.add_argument('-s', help="save results", action='store_true', default=False)
+parser.add_argument('--gpuid', help="GPU to use", metavar='INT', default=0, type=int)
 
 # utility functions
 def rmse_mae_over(
@@ -440,6 +441,7 @@ if __name__ == "__main__":
 
     print ("Args parsed. Training Started.")
     # setting relevant regressors and hyperparameters
+    os.environ["CUDA_VISIBLE_DEVICES"]=f"{args.gpuid}"
     Regressor, hyperparameters = setRegHy(args)
     start = time.time()
     results, counter = rmse_mae_over(
