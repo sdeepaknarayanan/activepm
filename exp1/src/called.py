@@ -16,7 +16,6 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, Matern
 from sklearn.neighbors import KNeighborsRegressor
 import xgboost
-from thundersvm import SVR
 
 from utils import mae, rmse, getfName
 
@@ -302,6 +301,7 @@ def setRegHy(reg):
     hyperparameters = [{}] # first use the default hyperparams :)
 
     if reg == 'svr':
+        from thundersvm import SVR
         Regressor = SVR
         hyperparameters = [] # SVR cries when we pass empty params
         C = [10**i for i in [-3, -2, 0, 1, 3, 5]]
