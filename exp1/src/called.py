@@ -84,39 +84,39 @@ def rmse_mae_over(
                 'rmse': [],
                 'mae': [],
             }
-        
+
         # Finding the validation error if not gp
         if Regressor.__name__ not in ["GPR", "SVGP"]:
             for kin, (sts_train_index, sts_val_index) in enumerate(kfin.split(sts_ftrain_index)):
-                
+
                 # getting the correct stations
                 sts_test = allStations[sts_test_index]
                 sts_val = allStations[sts_ftrain_index[sts_val_index]]
                 sts_train = allStations[sts_ftrain_index[sts_train_index]]
-                
+
                 # plotting for checking if things are correct
                 # plt.scatter(sts_test, [1]*len(sts_test), c='r', alpha=.6)
                 # plt.scatter(sts_val, [1]*len(sts_val), c='b', alpha=.6)
                 # plt.scatter(sts_train, [1]*len(sts_train), c='c', alpha=.6)
                 # plt.show()
-                
+
                 # getting the train and val sets accroding to stations
                 test_df = df[df['station_id'].isin(sts_test)]
                 val_df = df[df['station_id'].isin(sts_val)]
                 train_df = df[df['station_id'].isin(sts_train)]
-                
+
                 # checking if there is some intersection, should not be
                 # print(np.intersect1d(test_df['station_id'].unique(), val_df['station_id'].unique()))
                 # print(np.intersect1d(train_df['station_id'].unique(), val_df['station_id'].unique()))
                 # print(np.intersect1d(train_df['station_id'].unique(), test_df['station_id'].unique()))
-                
+
                 # getting the temporally relevant data
                 for time_ix in range(contextDays - 1, totalDays, stepSize): # zero index
                     # data before today
                     temporal_train_df = train_df[train_df['ts'] <= times[time_ix]]
                     temporal_val_df = val_df[val_df['ts'] == times[time_ix]]
                     temporal_test_df = test_df[test_df['ts'] == times[time_ix]] # for avoid calcs for empty tests
-                    
+
                     # data after contextDays - lastKDays
                     temp = max(0, time_ix - lastKDays + 1)
                     temporal_train_df = temporal_train_df[temporal_train_df['ts'] >= times[temp]]
@@ -134,7 +134,7 @@ def rmse_mae_over(
                     # plt.savefig(f"{time_ix}.png", dpi=120)
                     # # plt.show()
                     # plt.close()
-                    
+
                     # checking if dfs contain atleast one, row, else continue
                     trainable = True
                     for temp_df in [temporal_train_df, temporal_val_df, temporal_test_df]:
@@ -185,14 +185,14 @@ def rmse_mae_over(
                     tempdf3 = tempdf2[tempdf2["hy_ix"] == hy_ix]
                     rmse_val, mae_val = tempdf3[['rmse', 'mae']].mean().copy()
                     tempstore.loc[tempstore.shape[0]] = tempdf3.loc[tempdf3.index[0]].copy() # randomly add
-                    # editing the last row added, 
+                    # editing the last row added,
                     # no side effects as tempdf3 would never be used again
                     # print (tempstore)
                     tempstore.loc[tempstore.shape[0] - 1][['rmse', 'mae', 'time_ix']] = rmse_val, mae_val, -1
                     # print ("SHOULD BE A EMPTY") # it is, append copies
                     # print (outdf[outdf['rmse'] == rmse_val])
                     # time_ix is not relevant
-            
+
             assert tempstore.shape[0] == (splits-1) * len(hyperparameters)
 
             # print ('Reduced on dimension essentially.')
@@ -218,13 +218,13 @@ def rmse_mae_over(
             sts_test = allStations[sts_test_index]
             # this means train + val in nested cross validation
             sts_train_val = allStations[sts_ftrain_index]
-            
+
             # plotting for checking if things are correct
             # plt.scatter(sts_test, [1]*len(sts_test), c='r', alpha=.6)
             # plt.scatter(sts_val, [1]*len(sts_val), c='b', alpha=.6)
             # plt.scatter(sts_train, [1]*len(sts_train), c='c', alpha=.6)
             # plt.show()
-            
+
             # getting the train, test, val sets accroding to stations
             test_df = df[df['station_id'].isin(sts_test)]
             train_val_df = df[df['station_id'].isin(sts_train_val)]
@@ -296,7 +296,7 @@ def rmse_mae_over(
                         wsk = gpflow.kernels.RBF(input_dim = 2, active_dims = [6,7], ARD=True)
                         weathk = gpflow.kernels.RBF(input_dim = 1, active_dims = [8])
                         overall_kernel = (xy_matern_1 + xy_matern_2) * time * combined * wsk * weathk
-            
+
                     # model init
                     # print (temporal_train_val_df[X_cols]) # we can specify cols for safety
                     print ("Try to pass data to obj")
@@ -333,12 +333,12 @@ def rmse_mae_over(
                     predictions, variance = reg.predict_y(temporal_test_df[["latitude","longitude","ts"]].values)
                     print ("Trained.")
                     hy_ix = -1
-                except Exception as e: 
+                except Exception as e:
                     print ("not_trained.")
                     print(e)
                     continue
 
-            else: 
+            else:
                 reg = Regressor(**hy)
                 reg.fit(temporal_train_val_df[X_cols].values, temporal_train_val_df[y_col].values.ravel())
                 predictions = reg.predict(temporal_test_df[X_cols].values)
@@ -357,7 +357,7 @@ def rmse_mae_over(
             store['hy_ix'].append(hy_ix)
             store['rmse'].append(rmse0)
             store['mae'].append(mae0)
-        
+
         test_err_df = pd.DataFrame(store)
         outdf = outdf.append(test_err_df, ignore_index=True) # added to final dataframe to return
 
@@ -419,10 +419,10 @@ def setRegHy(args):
                     hyperparameters.append(hy)
 
     elif reg in ['gpST', 'gpFULL']:
-        # if lastKDays <= 30:
-        Regressor = gpflow.models.GPR
-        # else : # sparse GP
-            # Regressor = gpflow.models.SVGP
+        if lastKDays <= 30:
+            Regressor = gpflow.models.GPR
+        else : # sparse GP
+            Regressor = gpflow.models.SVGP
         config = tf.ConfigProto()
         config.gpu_options.allow_growth=True
         sess = tf.Session(config=config)
@@ -457,7 +457,7 @@ if __name__ == "__main__":
     print("RESULTS")
     print(results.head())
     fname = getfName(args.datafile)
-    
+
     # saving the results
     if args.s:
         store_path = f"./results/{fname}/{args.reg}/{args.lastKDays}/{args.stepSize}"
