@@ -5,15 +5,15 @@ from the main file caller.py to find the validation errors
 import os
 import sys
 import time
+import gpflow
 import argparse
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 import matplotlib.pyplot as plt
 from sklearn.model_selection import KFold
 
 from sklearn.linear_model import Lasso
-from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF, Matern
 from sklearn.neighbors import KNeighborsRegressor
 import xgboost
 
@@ -23,7 +23,7 @@ from utils import mae, rmse, getfName
 parser = argparse.ArgumentParser(
     description='Called Interpolator, saves relavant csvs in ')
 parser.add_argument(
-    '--reg', metavar='xgb|svr|knn|las|gp|idw|krg', dest='reg', default='knn',
+    '--reg', metavar='xgb|svr|knn|las|gpST|gpFULL', dest='reg', default='knn',
     help="Regressors to use", type=str
 )
 parser.add_argument(
@@ -46,18 +46,13 @@ def rmse_mae_over(
     lastKDays,
     Regressor,
     hyperparameters,
-    datafile
+    datafile,
+    reg_passed # only for distinguishing between gpST and gpFULL
     ):
     '''Finds the rmse and mae by doing nested cross validation over the dataset'''
     counter = 0
     splits = 6 # kfold nested cross-validation (Fixed)
     contextDays = 30 # This is a the amount of data (in days) to start with. (Fixed)
-    # assert (contextDays <= lastKDays)
-
-
-    # TODO Windspeedx and Windspeedy need to be changed
-    # The file to be passed should contain 'PM2.5' as one of the col
-
 
     df = pd.read_csv(datafile)
     df = df[df.columns[1:]] # assuming the first col is unlabled
@@ -90,129 +85,130 @@ def rmse_mae_over(
                 'mae': [],
             }
         
-        # Finding the validation error
-        for kin, (sts_train_index, sts_val_index) in enumerate(kfin.split(sts_ftrain_index)):
-            
-            # getting the correct stations
-            sts_test = allStations[sts_test_index]
-            sts_val = allStations[sts_ftrain_index[sts_val_index]]
-            sts_train = allStations[sts_ftrain_index[sts_train_index]]
-            
-            # plotting for checking if things are correct
-            # plt.scatter(sts_test, [1]*len(sts_test), c='r', alpha=.6)
-            # plt.scatter(sts_val, [1]*len(sts_val), c='b', alpha=.6)
-            # plt.scatter(sts_train, [1]*len(sts_train), c='c', alpha=.6)
-            # plt.show()
-            
-            # getting the train and val sets accroding to stations
-            test_df = df[df['station_id'].isin(sts_test)]
-            val_df = df[df['station_id'].isin(sts_val)]
-            train_df = df[df['station_id'].isin(sts_train)]
-            
-            # checking if there is some intersection, should not be
-            # print(np.intersect1d(test_df['station_id'].unique(), val_df['station_id'].unique()))
-            # print(np.intersect1d(train_df['station_id'].unique(), val_df['station_id'].unique()))
-            # print(np.intersect1d(train_df['station_id'].unique(), test_df['station_id'].unique()))
-            
-            # getting the temporally relevant data
-            for time_ix in range(contextDays - 1, totalDays, stepSize): # zero index
-                # data before today
-                temporal_train_df = train_df[train_df['ts'] <= times[time_ix]]
-                temporal_val_df = val_df[val_df['ts'] == times[time_ix]]
-                temporal_test_df = test_df[test_df['ts'] == times[time_ix]] # for avoid calcs for empty tests
+        # Finding the validation error if not gp
+        if Regressor.__name__ not in ["GPR", "SVGP"]:
+            for kin, (sts_train_index, sts_val_index) in enumerate(kfin.split(sts_ftrain_index)):
                 
-                # data after contextDays - lastKDays
-                temp = max(0, time_ix - lastKDays + 1)
-                temporal_train_df = temporal_train_df[temporal_train_df['ts'] >= times[temp]]
-
-                # plotting the training data -- Debugging
-                # for ix, temp_df in zip("gck", [temporal_train_df, temporal_val_df, temporal_test_df]):
-                #     plt.scatter(temp_df["ts"].values, temp_df["station_id"].values, c=ix, alpha=0.3, s=30)
-                # plt.xlim(-0.03, 1.03)
-                # plt.ylim(1000, 1038)
-                # plt.axvline(x = times[time_ix], alpha=.5, c='r')
-                # plt.legend(["Today's Day", "Train", "Validation", "Test"])
-                # plt.title(f"Data fed for lastKDays={lastKDays}")
-                # plt.xlabel("Day # (Scaled)")
-                # plt.ylabel("Sation IDs")
-                # plt.savefig(f"{time_ix}.png", dpi=120)
-                # # plt.show()
-                # plt.close()
+                # getting the correct stations
+                sts_test = allStations[sts_test_index]
+                sts_val = allStations[sts_ftrain_index[sts_val_index]]
+                sts_train = allStations[sts_ftrain_index[sts_train_index]]
                 
-                # checking if dfs contain atleast one, row, else continue
-                trainable = True
-                for temp_df in [temporal_train_df, temporal_val_df, temporal_test_df]:
-                    if temp_df.shape[0] == 0:
-                        trainable = False
-                if not trainable:
-                    continue
+                # plotting for checking if things are correct
+                # plt.scatter(sts_test, [1]*len(sts_test), c='r', alpha=.6)
+                # plt.scatter(sts_val, [1]*len(sts_val), c='b', alpha=.6)
+                # plt.scatter(sts_train, [1]*len(sts_train), c='c', alpha=.6)
+                # plt.show()
+                
+                # getting the train and val sets accroding to stations
+                test_df = df[df['station_id'].isin(sts_test)]
+                val_df = df[df['station_id'].isin(sts_val)]
+                train_df = df[df['station_id'].isin(sts_train)]
+                
+                # checking if there is some intersection, should not be
+                # print(np.intersect1d(test_df['station_id'].unique(), val_df['station_id'].unique()))
+                # print(np.intersect1d(train_df['station_id'].unique(), val_df['station_id'].unique()))
+                # print(np.intersect1d(train_df['station_id'].unique(), test_df['station_id'].unique()))
+                
+                # getting the temporally relevant data
+                for time_ix in range(contextDays - 1, totalDays, stepSize): # zero index
+                    # data before today
+                    temporal_train_df = train_df[train_df['ts'] <= times[time_ix]]
+                    temporal_val_df = val_df[val_df['ts'] == times[time_ix]]
+                    temporal_test_df = test_df[test_df['ts'] == times[time_ix]] # for avoid calcs for empty tests
+                    
+                    # data after contextDays - lastKDays
+                    temp = max(0, time_ix - lastKDays + 1)
+                    temporal_train_df = temporal_train_df[temporal_train_df['ts'] >= times[temp]]
 
-                # for all hyperparameters: depend on regressor chosen
-                for hy_ix, hy in enumerate(hyperparameters):
-                    counter += 1
-                    # initilize the regressor with hyperparams
-                    # TODO if using GPFLOW, take care of Cholesky Decomp Failure
-                    reg = Regressor(**hy)
-                    reg.fit(temporal_train_df[X_cols].values, temporal_train_df[y_col].values.ravel())
-                    predictions = reg.predict(temporal_val_df[X_cols].values)
+                    # plotting the training data -- Debugging
+                    # for ix, temp_df in zip("gck", [temporal_train_df, temporal_val_df, temporal_test_df]):
+                    #     plt.scatter(temp_df["ts"].values, temp_df["station_id"].values, c=ix, alpha=0.3, s=30)
+                    # plt.xlim(-0.03, 1.03)
+                    # plt.ylim(1000, 1038)
+                    # plt.axvline(x = times[time_ix], alpha=.5, c='r')
+                    # plt.legend(["Today's Day", "Train", "Validation", "Test"])
+                    # plt.title(f"Data fed for lastKDays={lastKDays}")
+                    # plt.xlabel("Day # (Scaled)")
+                    # plt.ylabel("Sation IDs")
+                    # plt.savefig(f"{time_ix}.png", dpi=120)
+                    # # plt.show()
+                    # plt.close()
+                    
+                    # checking if dfs contain atleast one, row, else continue
+                    trainable = True
+                    for temp_df in [temporal_train_df, temporal_val_df, temporal_test_df]:
+                        if temp_df.shape[0] == 0:
+                            trainable = False
+                    if not trainable:
+                        continue
 
-                    rmse0 = rmse(predictions, temporal_val_df[y_col].values)
-                    mae0 = mae(predictions, temporal_val_df[y_col].values)
+                    # for all hyperparameters: depend on regressor chosen
+                    for hy_ix, hy in enumerate(hyperparameters):
+                        counter += 1
+                        # initilize the regressor with hyperparams
+                        # TODO if using GPFLOW, take care of Cholesky Decomp Failure
+                        reg = Regressor(**hy)
+                        reg.fit(temporal_train_df[X_cols].values, temporal_train_df[y_col].values.ravel())
+                        predictions = reg.predict(temporal_val_df[X_cols].values)
 
-                    # for getting the best_hy_ix later
-                    store['is_val_error'].append(True)
-                    store['reg'].append(Regressor.__name__)
-                    store['stepSize'].append(stepSize)
-                    store['lastKDays'].append(lastKDays)
-                    store['kout'].append(kout)
-                    store['kin'].append(kin)
-                    store['time_ix'].append(time_ix)
-                    store['hy_ix'].append(hy_ix)
-                    store['rmse'].append(rmse0)
-                    store['mae'].append(mae0)
+                        rmse0 = rmse(predictions, temporal_val_df[y_col].values)
+                        mae0 = mae(predictions, temporal_val_df[y_col].values)
 
-        val_err_df = pd.DataFrame(store)
-        # added to final dataframe to return + copy added
-        outdf = outdf.append(val_err_df, ignore_index=True)
+                        # for getting the best_hy_ix later
+                        store['is_val_error'].append(True)
+                        store['reg'].append(Regressor.__name__)
+                        store['stepSize'].append(stepSize)
+                        store['lastKDays'].append(lastKDays)
+                        store['kout'].append(kout)
+                        store['kin'].append(kin)
+                        store['time_ix'].append(time_ix)
+                        store['hy_ix'].append(hy_ix)
+                        store['rmse'].append(rmse0)
+                        store['mae'].append(mae0)
 
-        # print ("Validation done.")
+            val_err_df = pd.DataFrame(store)
+            # added to final dataframe to return + copy added
+            outdf = outdf.append(val_err_df, ignore_index=True)
 
-        # preparing for finding the test error
-        # taking the mean of rmse accross the time_ix dim.
-        tempstore = val_err_df.loc[0:0].copy()
-        tempstore.drop(index=tempstore.index, inplace=True) # getting an empty df with correct dtypes
-        assert (tempstore.shape[0] == 0)
+            # print ("Validation done.")
 
-        for kInSelect in range(splits - 1):
-            tempdf2 = val_err_df[val_err_df['kin'] == kInSelect]
-            for hy_ix in range(len(hyperparameters)):
-                tempdf3 = tempdf2[tempdf2["hy_ix"] == hy_ix]
-                rmse_val, mae_val = tempdf3[['rmse', 'mae']].mean().copy()
-                tempstore.loc[tempstore.shape[0]] = tempdf3.loc[tempdf3.index[0]].copy() # randomly add
-                # editing the last row added, 
-                # no side effects as tempdf3 would never be used again
-                # print (tempstore)
-                tempstore.loc[tempstore.shape[0] - 1][['rmse', 'mae', 'time_ix']] = rmse_val, mae_val, -1
-                # print ("SHOULD BE A EMPTY") # it is, append copies
-                # print (outdf[outdf['rmse'] == rmse_val])
-                # time_ix is not relevant
-        
-        assert tempstore.shape[0] == (splits-1) * len(hyperparameters)
+            # preparing for finding the test error
+            # taking the mean of rmse accross the time_ix dim.
+            tempstore = val_err_df.loc[0:0].copy()
+            tempstore.drop(index=tempstore.index, inplace=True) # getting an empty df with correct dtypes
+            assert (tempstore.shape[0] == 0)
 
-        # print ('Reduced on dimension essentially.')
+            for kInSelect in range(splits - 1):
+                tempdf2 = val_err_df[val_err_df['kin'] == kInSelect]
+                for hy_ix in range(len(hyperparameters)):
+                    tempdf3 = tempdf2[tempdf2["hy_ix"] == hy_ix]
+                    rmse_val, mae_val = tempdf3[['rmse', 'mae']].mean().copy()
+                    tempstore.loc[tempstore.shape[0]] = tempdf3.loc[tempdf3.index[0]].copy() # randomly add
+                    # editing the last row added, 
+                    # no side effects as tempdf3 would never be used again
+                    # print (tempstore)
+                    tempstore.loc[tempstore.shape[0] - 1][['rmse', 'mae', 'time_ix']] = rmse_val, mae_val, -1
+                    # print ("SHOULD BE A EMPTY") # it is, append copies
+                    # print (outdf[outdf['rmse'] == rmse_val])
+                    # time_ix is not relevant
+            
+            assert tempstore.shape[0] == (splits-1) * len(hyperparameters)
+
+            # print ('Reduced on dimension essentially.')
 
 
-        # this for nested cross validation. the way we choose the best hyperparameters
-        # for the second experiment will be cleared later.
-        # TODO Discuss this with deepak.
-        # tempstore now contains mean rmse (across time_stamps)
-        # we now choose the best_hy_ix for a perticular kout. i.e.
-        # we will only have `splits` number of best_hy_ix
+            # this for nested cross validation. the way we choose the best hyperparameters
+            # for the second experiment will be cleared later.
+            # TODO Discuss this with deepak.
+            # tempstore now contains mean rmse (across time_stamps)
+            # we now choose the best_hy_ix for a perticular kout. i.e.
+            # we will only have `splits` number of best_hy_ix
 
-        # TODO Need to assure that len(hyperparameters) >= num of splits
-        ix = tempstore['rmse'].idxmin()
-        best_hy_ix = tempstore.loc[ix]["hy_ix"]
-        hy = hyperparameters[best_hy_ix]
+            # TODO Need to assure that len(hyperparameters) >= num of splits
+            ix = tempstore['rmse'].idxmin()
+            best_hy_ix = tempstore.loc[ix]["hy_ix"]
+            hy = hyperparameters[best_hy_ix]
 
         # find the error values on the test set
         store = { k: [] for k in store.keys() } # reinit store
@@ -271,9 +267,81 @@ def rmse_mae_over(
 
             # initilize the regressor with hyperparams
             counter += 1
-            reg = Regressor(**hy)
-            reg.fit(temporal_train_val_df[X_cols].values, temporal_train_val_df[y_col].values.ravel())
-            predictions = reg.predict(temporal_test_df[X_cols].values)
+            if Regressor.__name__ in ["GPR", "SVGP"]:
+                try: # try training
+                    # reset stuff
+                    tf.reset_default_graph()
+                    graph = tf.get_default_graph()
+                    gpflow.reset_default_session(graph=graph)
+
+                    # kernel magik
+                    if reg_passed == 'gpST': # GP Spatial Temporal
+                        xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                        xy_matern_2 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                        t_matern = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
+                        t_other = [gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2]) for i in range(5)]
+                        time = t_matern
+                        for i in t_other:
+                            time = time + i
+                        overall_kernel = (xy_matern_1 + xy_matern_2) * time
+                    elif reg_passed == 'gpFULL': # GP Full Data
+                        xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                        xy_matern_2 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                        t_matern = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
+                        t_other = [gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2]) for i in range(5)]
+                        time = t_matern
+                        for i in t_other:
+                            time = time + i
+                        combined = gpflow.kernels.RBF(input_dim = 1, active_dims = [4])*(gpflow.kernels.Matern52(input_dim = 2, active_dims = [3, 5], ARD=True) + gpflow.kernels.Matern32(input_dim = 2, active_dims = [3,5], ARD=True))
+                        wsk = gpflow.kernels.RBF(input_dim = 2, active_dims = [6,7], ARD=True)
+                        weathk = gpflow.kernels.RBF(input_dim = 1, active_dims = [8])
+                        overall_kernel = (xy_matern_1 + xy_matern_2) * time * combined * wsk * weathk
+            
+                    # model init
+                    # print (temporal_train_val_df[X_cols]) # we can specify cols for safety
+                    print ("Try to pass data to obj")
+                    X = temporal_train_val_df[["latitude","longitude","ts"]].values
+                    y = temporal_train_val_df[y_col].values
+                    if Regressor.__name__ == "GPR":
+                        reg = Regressor(
+                            X,
+                            y,
+                            kern = overall_kernel,
+                            mean_function = None
+                        )
+                    else: # sparse SVGP
+                        # we select randomly 50 positions.
+                        m = 30
+                        rng = np.random.RandomState(42)
+                        ixs = rng.choice(X.shape[0], size=m, replace=False)
+                        Z = X[ixs, :].copy()
+                        reg = Regressor(
+                            X,
+                            y,
+                            kern=overall_kernel,
+                            likelihood=gpflow.likelihoods.Gaussian(),
+                            Z=Z
+                        )
+                    print ("At least going in the reg obj")
+
+                    # optimize
+                    opt = gpflow.train.ScipyOptimizer()
+                    opt.minimize(reg)
+                    print ("Optimization Succeeded")
+
+                    # predict
+                    predictions, variance = reg.predict_y(temporal_test_df[["latitude","longitude","ts"]].values)
+                    print ("Trained.")
+                    hy_ix = -1
+                except Exception as e: 
+                    print ("not_trained.")
+                    print(e)
+                    continue
+
+            else: 
+                reg = Regressor(**hy)
+                reg.fit(temporal_train_val_df[X_cols].values, temporal_train_val_df[y_col].values.ravel())
+                predictions = reg.predict(temporal_test_df[X_cols].values)
 
             rmse0 = rmse(predictions, temporal_test_df[y_col].values)
             mae0 = mae(predictions, temporal_test_df[y_col].values)
@@ -296,9 +364,11 @@ def rmse_mae_over(
         print(f"{kout + 1}th Outer KFold done.")
     return outdf, counter
 
-def setRegHy(reg):
+def setRegHy(args):
     '''Sets relevant hyperparameters and regressor, based on the args passed'''
     hyperparameters = [{}] # first use the default hyperparams :)
+    reg = args.reg
+    lastKDays = args.lastKDays
 
     if reg == 'svr':
         from thundersvm import SVR
@@ -344,9 +414,18 @@ def setRegHy(reg):
                         'max_depth': depth,
                         'learning_rate': lr,
                         'n_estimators': estimator,
-			'n_jobs': -1,
+            'n_jobs': -1,
                     }
                     hyperparameters.append(hy)
+
+    elif reg in ['gpST', 'gpFULL']:
+        # if lastKDays <= 30:
+        Regressor = gpflow.models.GPR
+        # else : # sparse GP
+            # Regressor = gpflow.models.SVGP
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth=True
+        sess = tf.Session(config=config)
 
     else:
         raise ValueError("We need a predefined Regressor, for sane hyperparameters")
@@ -361,7 +440,7 @@ if __name__ == "__main__":
 
     print ("Args parsed. Training Started.")
     # setting relevant regressors and hyperparameters
-    Regressor, hyperparameters = setRegHy(args.reg)
+    Regressor, hyperparameters = setRegHy(args)
     start = time.time()
     results, counter = rmse_mae_over(
         args.stepSize,
@@ -369,6 +448,7 @@ if __name__ == "__main__":
         Regressor, # set by the function setRegHy above.
         hyperparameters, # set by the function setRegHy above.
         args.datafile,
+        args.reg,
     )
     end = time.time()
     print("Time Taken (s):", end - start)

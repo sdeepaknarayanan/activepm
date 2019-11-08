@@ -14,7 +14,7 @@ import tensorflow as tf
 import operator
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from copy import deepcopy    
-
+import os 
 
 class GPActive():
 
@@ -29,7 +29,10 @@ class GPActive():
                 test_days,
                 train_days,
                 number_to_query,
-                number_of_seeds):
+                number_of_seeds,
+                fname = [None, None],
+                qbc_choice = False 
+                ):
 
         self.df = df
         self.train_stations = train_stations
@@ -54,9 +57,26 @@ class GPActive():
         self.train_columns.remove('PM2.5')  # we do not want train to have particulate matter data
         self.train_columns.remove('Station')  # we do not want to have the station data either
 
+
+        if fname[0] == None:
+            print("PLEASE PROVIDE FILE NAME")
+            print("EXITING")
+            return
+        else:
+            self.fname = fname
+
+        self.qbc_choice = qbc_choice
+
+        if self.qbc_choice:
+            path  = f"results/{self.train_days}/final_qbc/{self.fname[0]}_{self.fname[1]}/stations.npy"
+            self.qbc_stations = np.load(path)
+
+        else:
+            self.qbc_stations = None
+
+
         ## First I am choosing by stations, it can't be the case that there is no data
         ## for a given station. So there can be no key error here. 
-
 
         
         # self.train = pd.concat([self.df.groupby('Station').get_group(station) for station in self.train_stations])
@@ -131,14 +151,14 @@ class GPActive():
 
 
         # self.queried_stations = []
-        self.gp_rmse = np.ones(self.test_days + 1)
+        self.gp_rmse = np.zeros(self.test_days + 1)
         self.gp_mae = np.zeros(self.test_days + 1)
         self.gp_random_rmse = np.zeros((self.number_of_seeds, self.test_days + 1))
         self.gp_random_mae =  np.zeros((self.number_of_seeds, self.test_days + 1))
 
 
         self.initialize_data()
-        print("INIT")
+        print("INIT DONE")
         print(self.is_trainable, self.is_testable)
         # self.gp_train()
         if self.is_trainable and self.is_testable:
@@ -305,11 +325,11 @@ class GPActive():
             graph = tf.get_default_graph()
             gpflow.reset_default_session(graph=graph)
 
-            xy_matern_1 = gpflow.kernels.Matern52(input_dim=2, ARD=True, active_dims=[0, 1])
-            xy_matern_2 = gpflow.kernels.Matern52(input_dim=2, ARD=True, active_dims=[0, 1])
+            xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+            xy_matern_2 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
             
-            t_matern = gpflow.kernels.Matern52(input_dim=1, active_dims=[2])
-            t_other = [gpflow.kernels.Matern52(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2]) for i in range(3)]
+            t_matern = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
+            t_other = [gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2]) for i in range(5)]
             
             time = t_matern
             for i in t_other:
@@ -328,16 +348,20 @@ class GPActive():
             opt.minimize(self.model)
             self.trained = True
 
+            # saver = gpflow.saver.Saver()
+            # saver.save(filename, model)
 
-        except Exception as e: print(e)
 
-            # self.trained = False
-            # print("CHOLESKY FAILED")
+
+        except Exception as e: 
+            print(e)
+            self.trained = False
 
 
     def active_gp(self):
 
         for itr in range(1, self.test_days + 1):
+
 
             print("Current Day before update:", self.current_day)
             ##########################################################
@@ -345,9 +369,24 @@ class GPActive():
             ##########################################################
             print("\nCurrent Day after update:", self.current_day)
 
+            try:
+                self.timestamps[self.current_day]
+            except Exception as e:
+                print(e)
+                break
+
+
             if itr % self.frequency == 1:
 
-                stations_to_add = self.max_variance_sampling()
+                if self.qbc_choice:
+                    stations_to_add = self.qbc_stations[0]
+                    self.qbc_stations = self.qbc_stations[1:]
+                    self.queried_stations.append(stations_to_add)
+                    if stations_to_add is not None:
+                        stations_to_add = [stations_to_add]
+
+                else:
+                    stations_to_add = self.max_variance_sampling()
 
                 if stations_to_add is not None:
                     self.query_update(stations_to_add)
@@ -357,6 +396,7 @@ class GPActive():
 
             else:
                 self.data_update_daily()
+            
 
             if self.current_day < self.train_days:
                 timestamps = self.timestamps[:self.current_day + 1]
@@ -392,11 +432,18 @@ class GPActive():
 
 
                 assert(self.X_test['Time'].unique()[0] == self.timestamps[self.current_day])
-                assert(self.X_train['Time'].unique().max() == self.timestamps[self.current_day])
+                print(self.X_train['Time'].unique().max(), self.timestamps[self.current_day])
+                try:
+                    assert(self.X_train['Time'].unique().max() == self.timestamps[self.current_day])
+                except AssertionError:
+                    print("LOOK ABOVE")
 
-                print("\nTrain DataFrame Shape", self.X_train.shape)
-                print("\nPool DataFrame Shape", self.pool.shape)
-                print("\nTest DataFrame Shape", self.X_test.shape)
+                assert(self.X_test['Time'].unique().shape[0] == 1)
+
+
+                # print("\nTrain DataFrame Shape", self.X_train.shape)
+                # print("\nPool DataFrame Shape", self.pool.shape)
+                # print("\nTest DataFrame Shape", self.X_test.shape)
 
                 self.gp_train()
 
@@ -418,20 +465,76 @@ class GPActive():
                 self.gp_rmse[itr] = np.nan
                 self.gp_mae[itr] = np.nan
 
+            if itr % 10 == 0:
+
+                if not self.qbc_choice:
+
+                    temp_store_path = f"results/{self.train_days}/intermediate_gp/{self.fname[0]}_{self.fname[1]}/{self.current_day}"
+                    if not os.path.exists(temp_store_path):
+                        os.makedirs(temp_store_path)
+                    np.save(temp_store_path + "/rmse", self.gp_rmse)
+                    np.save(temp_store_path + "/mae", self.gp_mae)
+                    np.save(temp_store_path + "/stations", self.queried_stations)
+
+                else:
+
+                    temp_store_path = f"results/{self.train_days}/intermediate_gp_qbcs/{self.fname[0]}_{self.fname[1]}/{self.current_day}"
+                    if not os.path.exists(temp_store_path):
+                        os.makedirs(temp_store_path)
+                    np.save(temp_store_path + "/rmse", self.gp_rmse)
+                    np.save(temp_store_path + "/mae", self.gp_mae)
+                    np.save(temp_store_path + "/stations", self.queried_stations)
+
+
+
+        if not self.qbc_choice:
+
+            store_path = f"results/{self.train_days}/final_gp/{self.fname[0]}_{self.fname[1]}"
+            if not os.path.exists(store_path):
+                os.makedirs(store_path)
+            np.save(store_path + "/final_rmse", self.gp_rmse)
+            np.save(store_path + "/final_mae", self.gp_mae)
+            np.save(store_path + "/stations", self.queried_stations)
+
+        else:
+
+            temp_store_path = f"results/{self.train_days}/final_gp_qbcs/{self.fname[0]}_{self.fname[1]}/{self.current_day}"
+            if not os.path.exists(temp_store_path):
+                os.makedirs(temp_store_path)
+            np.save(temp_store_path + "/rmse", self.gp_rmse)
+            np.save(temp_store_path + "/mae", self.gp_mae)
+            np.save(temp_store_path + "/stations", self.queried_stations)
+
+
+
+
+
 
 
     def random_sampling(self):
 
-        self.trained = False
-        self.is_trainable = None
-        self.is_testable = None
-        self.is_queryable = None
+        temp_path = f"results/{self.train_days}/final_random_gp/{self.fname[0]}_{self.fname[1]}"
+        if os.path.exists(temp_path):
+            return
 
-
+        # don't run for already calced results
+        max_seed = None
         for seed in range(self.number_of_seeds):
+            temp_path = f"results/{self.train_days}/intermediate_random_gp/{self.fname[0]}_{self.fname[1]}/{seed}"
+            if os.path.exists(temp_path):
+                max_seed = seed
+        
+        if max_seed is None:
+            max_seed = 0
+
+        for seed in range(max_seed, self.number_of_seeds):
+            
+            self.trained = False
+            self.is_trainable = None
+            self.is_testable = None
+            self.is_queryable = None
 
             self.initialize_data()
-
 
 
             assert(len(self.train_stations) == 6)
@@ -451,6 +554,15 @@ class GPActive():
                 self._next()            # Update the current day
                 ##########################################################
                 print("\nCurrent Day after update:", self.current_day)
+
+
+                try:
+                    self.timestamps[self.current_day]
+                except Exception as e:
+                    print(e)
+                    break
+            
+
 
 
                 if itr % self.frequency == 1:
@@ -505,11 +617,13 @@ class GPActive():
 
                     # print(self.X_train['Time'].unique().max())
                     assert(self.X_test['Time'].unique()[0] == self.timestamps[self.current_day])
-                    assert(self.X_train['Time'].unique().max() == self.timestamps[self.current_day])
+                    print(self.X_train['Time'].unique().max(), self.timestamps[self.current_day])
+                    try:
+                        assert(self.X_train['Time'].unique().max() == self.timestamps[self.current_day])
+                    except AssertionError:
+                        print("LOOK ABOVE")
 
-                    print("\nTrain DataFrame Shape", self.X_train.shape)
-                    print("\nPool DataFrame Shape", self.pool.shape)
-                    print("\nTest DataFrame Shape", self.X_test.shape)
+                    assert(self.X_test['Time'].unique().shape[0] == 1)
 
                     self.gp_train()
 
@@ -530,6 +644,30 @@ class GPActive():
                 else:
                     self.gp_random_rmse[seed][itr] = np.nan
                     self.gp_random_mae[seed][itr] = np.nan
+
+                temp_store_path = f"results/{self.train_days}/intermediate_random_gp/{self.fname[0]}_{self.fname[1]}/{seed}/{self.current_day}"
+                
+
+
+                if itr % 10 == 0:
+                    
+                    if not os.path.exists(temp_store_path):
+                        os.makedirs(temp_store_path)
+                    np.save(temp_store_path + "/rmse", self.gp_random_rmse[seed])
+                    np.save(temp_store_path + "/mae", self.gp_random_mae[seed])
+                    np.save(temp_store_path + "/stations", self.random_queried_stations[seed])
+
+
+        
+        store_path = f"results/{self.train_days}/final_random_gp/{self.fname[0]}_{self.fname[1]}"
+        if not os.path.exists(store_path):
+            os.makedirs(store_path)
+        np.save(store_path + "/final_rmse", self.gp_random_rmse)
+        np.save(store_path + "/final_mae", self.gp_random_mae)
+        np.save(store_path + "/final_stations", self.random_queried_stations)
+
+
+
 
 
     def initialize_data(self):
@@ -604,6 +742,8 @@ class GPActive():
         self.train_stations = deepcopy(self.reset_train_stations)
         self.test_stations = deepcopy(self.reset_test_stations)
         self.pool_stations = deepcopy(self.reset_pool_stations)
+
+
 
 
 

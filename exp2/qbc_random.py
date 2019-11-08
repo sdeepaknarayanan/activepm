@@ -11,12 +11,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import mean_absolute_error, mean_squared_error
-from sklearn.neighbors import KNeighborsRegressor
+import xgboost
 from copy import deepcopy
 import matplotlib
 import traceback
 from copy import deepcopy    
-
+import os
 
 class ActiveLearning():
 
@@ -31,8 +31,10 @@ class ActiveLearning():
             frequency,
             test_days,
             train_days,
+            number_to_query,
             number_of_seeds,
-            number_to_query
+            fname = [None, None],
+            gp_choice = False
         ):
 
         self.df = df
@@ -55,6 +57,13 @@ class ActiveLearning():
         ########################################
         ############# RESET ATTRIBUTES DONE ####
         ########################################
+
+        if fname[0] == None:
+            print("PLEASE PROVIDE FILE NAME")
+            print("EXITING")
+            return
+        else:
+            self.fname = fname
 
         self.current_day = context_days
         self.context_days = context_days
@@ -83,6 +92,15 @@ class ActiveLearning():
         self.random_rmse = np.zeros((self.number_of_seeds, self.test_days + 1))
         self.random_mae =  np.zeros((self.number_of_seeds, self.test_days + 1))
 
+        self.gp_choice = gp_choice
+
+        if self.gp_choice:
+            path  = f"results/{self.train_days}/final_gp/{self.fname[0]}_{self.fname[1]}/stations.npy"
+            self.gp_stations = np.load(path)
+
+        else:
+            self.gp_stations = None
+
 
         if self.is_trainable and self.is_testable:
 
@@ -110,6 +128,8 @@ class ActiveLearning():
             for i in range(self.number_of_seeds):
                 self.random_rmse[i][0] = np.nan
                 self.random_mae[i][0] = np.nan
+
+
 
                     
 
@@ -250,9 +270,26 @@ class ActiveLearning():
             ##########################################################
             print("\nCurrent Day after update:", self.current_day)
 
+
+            try:
+                self.timestamps[self.current_day]
+            except Exception as e:
+                print(e)
+                break
+
             if itr % self.frequency == 1:
 
-                stations_to_add = self.max_variance_sampling()
+                if self.gp_choice:
+                    stations_to_add = self.gp_stations[0]
+                    self.gp_stations = self.gp_stations[1:]
+
+                    self.queried_stations.append(stations_to_add)
+                    if stations_to_add is not None:
+                        stations_to_add = [stations_to_add]
+
+                    ### Not completely correct - need to account for pool stations not being present
+                else:
+                    stations_to_add = self.max_variance_sampling()
 
                 if stations_to_add is not None:
                     self.query_update(stations_to_add)
@@ -312,10 +349,12 @@ class ActiveLearning():
 
                 except AssertionError:
                     print(X_train['Time'].unique().max() , self.timestamps[self.current_day])
+                assert(self.X_test['Time'].unique().shape[0] == 1)
 
-                print("\nTrain DataFrame Shape", X_train.shape)
-                print("\nPool DataFrame Shape", self.pool.shape)
-                print("\nTest DataFrame Shape", self.X_test.shape)
+
+                # print("\nTrain DataFrame Shape", X_train.shape)
+                # print("\nPool DataFrame Shape", self.pool.shape)
+                # print("\nTest DataFrame Shape", self.X_test.shape)
 
                 mse = np.zeros(len(self.learners))  
                 mae = np.zeros(len(self.learners))
@@ -334,6 +373,47 @@ class ActiveLearning():
                 
                 self.qbc_rmse[itr] = np.nan
                 self.qbc_mae[itr] = np.nan
+
+
+            if itr % 10 == 0:
+
+                if not self.gp_choice:
+
+                    temp_store_path = f"results/{self.train_days}/intermediate_qbc/{self.fname[0]}_{self.fname[1]}/{self.current_day}"
+                    if not os.path.exists(temp_store_path):
+                        os.makedirs(temp_store_path)
+                    np.save(temp_store_path + "/rmse", self.qbc_rmse)
+                    np.save(temp_store_path + "/mae", self.qbc_mae)
+                    np.save(temp_store_path + "/stations", self.queried_stations)
+
+                else:
+                    temp_store_path = f"results/{self.train_days}/intermediate_qbc_gps/{self.fname[0]}_{self.fname[1]}/{self.current_day}"
+                    if not os.path.exists(temp_store_path):
+                        os.makedirs(temp_store_path)
+                    np.save(temp_store_path + "/rmse", self.qbc_rmse)
+                    np.save(temp_store_path + "/mae", self.qbc_mae)
+                    np.save(temp_store_path + "/stations", self.queried_stations)
+
+
+
+        if not self.gp_choice:
+            store_path = f"results/{self.train_days}/final_qbc/{self.fname[0]}_{self.fname[1]}"
+            if not os.path.exists(store_path):
+                os.makedirs(store_path)
+            np.save(store_path + "/final_rmse", self.qbc_rmse)
+            np.save(store_path + "/final_mae", self.qbc_mae)
+            np.save(store_path + "/stations", self.queried_stations)
+
+        else:
+            store_path = f"results/{self.train_days}/final_qbc_gps/{self.fname[0]}_{self.fname[1]}"
+            if not os.path.exists(store_path):
+                os.makedirs(store_path)
+            np.save(store_path + "/final_rmse", self.qbc_rmse)
+            np.save(store_path + "/final_mae", self.qbc_mae)
+            np.save(store_path + "/stations", self.queried_stations)
+
+
+
                 
 
     def random_sampling(self):
@@ -368,7 +448,11 @@ class ActiveLearning():
                 self._next()            # Update the current day
                 ##########################################################
                 print("\nCurrent Day after update:", self.current_day)
-
+                try:
+                    self.timestamps[self.current_day]
+                except Exception as e:
+                    print(e)
+                    break
 
                 if itr % self.frequency == 1:
 
@@ -423,13 +507,26 @@ class ActiveLearning():
 
                 if self.is_trainable and self.is_testable:
 
-                    assert(self.X_test['Time'].unique()[0] == self.timestamps[self.current_day])
-                    assert(X_train['Time'].unique().max() == self.timestamps[self.current_day])
+
+                    try:
+
+                        assert(self.X_test['Time'].unique()[0] == self.timestamps[self.current_day])
+
+                        print("2nd")
+
+                        assert(X_train['Time'].unique().max() == self.timestamps[self.current_day])
+
+                    except AssertionError:
+                        print(X_train['Time'].unique().max() , self.timestamps[self.current_day])
+                        print("LOOK ABOVE")
+
+
+
                     assert(self.X_test['Time'].unique().shape[0] == 1)
                     
-                    print("\nTrain DataFrame Shape", X_train.shape)
-                    print("\nPool DataFrame Shape", self.pool.shape)
-                    print("\nTest DataFrame Shape", self.X_test.shape)
+                    # print("\nTrain DataFrame Shape", X_train.shape)
+                    # print("\nPool DataFrame Shape", self.pool.shape)
+                    # print("\nTest DataFrame Shape", self.X_test.shape)
 
                     mse = np.zeros(len(self.learners))  
                     mae = np.zeros(len(self.learners))
@@ -448,6 +545,26 @@ class ActiveLearning():
 
                     self.random_rmse[seed][itr] = np.nan
                     self.random_mae[seed][itr] = np.nan
+
+                temp_store_path = f"results/{self.train_days}/intermediate_random_qbc/{self.fname[0]}_{self.fname[1]}/{seed}/{self.current_day}"
+                
+                if itr % 10 == 0:
+                    if not os.path.exists(temp_store_path):
+                        os.makedirs(temp_store_path)
+                    np.save(temp_store_path + "/rmse", self.random_rmse[seed])
+                    np.save(temp_store_path + "/mae", self.random_mae[seed])
+                    np.save(temp_store_path + "/stations", self.random_queried_stations[seed])
+
+
+        
+        store_path = f"results/{self.train_days}/final_random_qbc/{self.fname[0]}_{self.fname[1]}"
+        if not os.path.exists(store_path):
+            os.makedirs(store_path)
+        np.save(store_path + "/final_rmse", self.random_rmse)
+        np.save(store_path + "/final_mae", self.random_mae)
+        np.save(store_path + "/final_stations", self.random_queried_stations)
+
+
 
 
 
