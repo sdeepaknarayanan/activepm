@@ -365,6 +365,7 @@ def rmse_mae_over(
             store_path = f"./results/{fname}/temp_results/{tempstr}/{kout}_{kin}/{time_ix}"
             if not os.path.exists(store_path):
                 os.makedirs(store_path)
+            print (f"storing at {store_path}")
             temp_df_store.to_csv(store_path + '/t_results.csv', index=None)
 
         test_err_df = pd.DataFrame(store)
@@ -374,6 +375,7 @@ def rmse_mae_over(
         store_path = f"./results/{fname}/temp_results_append/{tempstr}/{kout}_{kin}"
         if not os.path.exists(store_path):
             os.makedirs(store_path)
+        print (f"storing at {store_path}")
         outdf.to_csv(store_path + '/t_results.csv', index=None)
 
         print(f"{kout + 1}th Outer KFold done.")
