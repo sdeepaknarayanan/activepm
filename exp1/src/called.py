@@ -349,12 +349,13 @@ def rmse_mae_over(
             mae0 = mae(predictions, temporal_test_df[y_col].values)
 
             # storing the results for test errors
+            kin = -1
             store['is_val_error'].append(False)
             store['reg'].append(Regressor.__name__)
             store['stepSize'].append(stepSize)
             store['lastKDays'].append(lastKDays)
             store['kout'].append(kout)
-            store['kin'].append(-1) # doesn't make sense for this.
+            store['kin'].append(kin) # doesn't make sense for this.
             store['time_ix'].append(time_ix)
             store['hy_ix'].append(hy_ix)
             store['rmse'].append(rmse0)
