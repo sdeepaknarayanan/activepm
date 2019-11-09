@@ -361,7 +361,7 @@ def rmse_mae_over(
             store['mae'].append(mae0)
 
             temp_df_store = pd.DataFrame(store)
-            tempstr = '/'.join([Regressor.__name__, lastKDays, stepSize])
+            tempstr = '/'.join([Regressor.__name__, str(lastKDays), str(stepSize)])
             store_path = f"./results/{fname}/temp_results/{tempstr}/{kout}_{kin}/{time_ix}"
             if not os.path.exists(store_path):
                 os.makedirs(store_path)
@@ -370,7 +370,7 @@ def rmse_mae_over(
         test_err_df = pd.DataFrame(store)
         # intermediate saving of outdf
         outdf = outdf.append(test_err_df, ignore_index=True) # added to final dataframe to return
-        tempstr = '/'.join([Regressor.__name__, lastKDays, stepSize])
+        tempstr = '/'.join([Regressor.__name__, str(lastKDays), str(stepSize)])
         store_path = f"./results/{fname}/temp_results_append/{tempstr}/{kout}_{kin}"
         if not os.path.exists(store_path):
             os.makedirs(store_path)
