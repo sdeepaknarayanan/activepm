@@ -374,7 +374,7 @@ def rmse_mae_over(
         store_path = f"./results/{fname}/temp_results_append/{tempstr}/{kout}_{kin}"
         if not os.path.exists(store_path):
             os.makedirs(store_path)
-        temp_df_store.to_csv(store_path + '/t_results.csv', index=None)
+        outdf.to_csv(store_path + '/t_results.csv', index=None)
 
         print(f"{kout + 1}th Outer KFold done.")
     return outdf, counter
