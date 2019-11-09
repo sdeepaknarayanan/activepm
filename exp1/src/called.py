@@ -48,7 +48,8 @@ def rmse_mae_over(
     Regressor,
     hyperparameters,
     datafile,
-    reg_passed # only for distinguishing between gpST and gpFULL
+    reg_passed, # only for distinguishing between gpST and gpFULL
+    fname,
     ):
     '''Finds the rmse and mae by doing nested cross validation over the dataset'''
     counter = 0
@@ -332,7 +333,7 @@ def rmse_mae_over(
 
                     # predict
                     predictions, variance = reg.predict_y(temporal_test_df[["latitude","longitude","ts"]].values)
-                    print ("Trained.")
+                    print ("Trained. time_ix, kout", time_ix, kout)
                     hy_ix = -1
                 except Exception as e:
                     print ("not_trained.")
@@ -359,8 +360,21 @@ def rmse_mae_over(
             store['rmse'].append(rmse0)
             store['mae'].append(mae0)
 
+            temp_df_store = pd.DataFrame(store)
+            tempstr = '/'.join([Regressor.__name__, lastKDays, stepSize])
+            store_path = f"./results/{fname}/temp_results/{tempstr}/{kout}_{kin}/{time_ix}"
+            if not os.path.exists(store_path):
+                os.makedirs(store_path)
+            temp_df_store.to_csv(store_path + '/t_results.csv', index=None)
+
         test_err_df = pd.DataFrame(store)
+        # intermediate saving of outdf
         outdf = outdf.append(test_err_df, ignore_index=True) # added to final dataframe to return
+        tempstr = '/'.join([Regressor.__name__, lastKDays, stepSize])
+        store_path = f"./results/{fname}/temp_results_append/{tempstr}/{kout}_{kin}"
+        if not os.path.exists(store_path):
+            os.makedirs(store_path)
+        temp_df_store.to_csv(store_path + '/t_results.csv', index=None)
 
         print(f"{kout + 1}th Outer KFold done.")
     return outdf, counter
@@ -420,10 +434,7 @@ def setRegHy(args):
                     hyperparameters.append(hy)
 
     elif reg in ['gpST', 'gpFULL']:
-        if lastKDays <= 30:
-            Regressor = gpflow.models.GPR
-#        else : # sparse GP
-            #Regressor = gpflow.models.SVGP
+        Regressor = gpflow.models.GPR
         config = tf.ConfigProto()
         config.gpu_options.allow_growth=True
         sess = tf.Session(config=config)
@@ -440,6 +451,7 @@ if __name__ == "__main__":
         print()
 
     print ("Args parsed. Training Started.")
+    fname = getfName(args.datafile)
     # setting relevant regressors and hyperparameters
     os.environ["CUDA_VISIBLE_DEVICES"]=f"{args.gpuid}"
     Regressor, hyperparameters = setRegHy(args)
@@ -451,6 +463,7 @@ if __name__ == "__main__":
         hyperparameters, # set by the function setRegHy above.
         args.datafile,
         args.reg,
+        fname,
     )
     end = time.time()
     print("Time Taken (s):", end - start)
@@ -458,7 +471,6 @@ if __name__ == "__main__":
     print()
     print("RESULTS")
     print(results.head())
-    fname = getfName(args.datafile)
 
     # saving the results
     if args.s:
