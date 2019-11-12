@@ -58,10 +58,10 @@ def active(train_days, i, j, isact):
 
 
     learners = {
-            0:xgboost.XGBRegressor(), 
-            1:xgboost.XGBRegressor(max_depth=10, learning_rate=1, n_estimators=10),
-            2:xgboost.XGBRegressor(max_depth=10, learning_rate=1, n_estimators=50),
-            3:xgboost.XGBRegressor(max_depth=50, learning_rate=1, n_estimators=10),
+            0:xgboost.XGBRegressor(max_depth=10, learning_rate=.1, n_estimators=10), 
+            1:xgboost.XGBRegressor(max_depth=10, learning_rate=1, n_estimators=50),
+            2:xgboost.XGBRegressor(max_depth=50, learning_rate=0.01, n_estimators=50),
+            3:xgboost.XGBRegressor(max_depth=50, learning_rate=0.1, n_estimators=10),
             4:xgboost.XGBRegressor(max_depth=50, learning_rate=1, n_estimators=50),
            }
 
@@ -75,10 +75,10 @@ def active(train_days, i, j, isact):
                         frequency = 30,
                         test_days = 365 - train_days,
                         train_days = train_days,
-                        number_of_seeds = 10,
+                        number_of_seeds = 5,
                         number_to_query = 1,
                         fname = [i, j],
-                        gp_choice = True
+                        gp_choice = False
                         )
 
     print(isact)

@@ -379,7 +379,7 @@ class ActiveLearning():
 
                 if not self.gp_choice:
 
-                    temp_store_path = f"results/{self.train_days}/intermediate_qbc/{self.fname[0]}_{self.fname[1]}/{self.current_day}"
+                    temp_store_path = f"results/{self.train_days}/intermediate_qbc_1/{self.fname[0]}_{self.fname[1]}/{self.current_day}"
                     if not os.path.exists(temp_store_path):
                         os.makedirs(temp_store_path)
                     np.save(temp_store_path + "/rmse", self.qbc_rmse)
@@ -397,7 +397,7 @@ class ActiveLearning():
 
 
         if not self.gp_choice:
-            store_path = f"results/{self.train_days}/final_qbc/{self.fname[0]}_{self.fname[1]}"
+            store_path = f"results/{self.train_days}/final_qbc_1/{self.fname[0]}_{self.fname[1]}"
             if not os.path.exists(store_path):
                 os.makedirs(store_path)
             np.save(store_path + "/final_rmse", self.qbc_rmse)
@@ -546,7 +546,7 @@ class ActiveLearning():
                     self.random_rmse[seed][itr] = np.nan
                     self.random_mae[seed][itr] = np.nan
 
-                temp_store_path = f"results/{self.train_days}/intermediate_random_qbc/{self.fname[0]}_{self.fname[1]}/{seed}/{self.current_day}"
+                temp_store_path = f"results/{self.train_days}/intermediate_random_qbc_1/{self.fname[0]}_{self.fname[1]}/{seed}/{self.current_day}"
                 
                 if itr % 10 == 0:
                     if not os.path.exists(temp_store_path):
@@ -557,7 +557,7 @@ class ActiveLearning():
 
 
         
-        store_path = f"results/{self.train_days}/final_random_qbc/{self.fname[0]}_{self.fname[1]}"
+        store_path = f"results/{self.train_days}/final_random_qbc_1/{self.fname[0]}_{self.fname[1]}"
         if not os.path.exists(store_path):
             os.makedirs(store_path)
         np.save(store_path + "/final_rmse", self.random_rmse)
