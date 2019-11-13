@@ -168,3 +168,58 @@ def heatmap(df,
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", "3%", pad="1%")
     plt.colorbar(heatmap, cax=cax)
+
+    
+def foo(lastKDays, results, rand=True):
+    dfs = []
+    splits = 6
+    for i in range(splits):
+        for j in range(splits-1):
+            gp = np.load(f"../exp2/src/{results}/{lastKDays}/final_gp/{i}_{j}/final_rmse.npy")
+            qbc = np.load(f"../exp2/src/{results}/{lastKDays}/final_qbc/{i}_{j}/final_rmse.npy")
+            knn = np.load(f"../exp2/src/{results}/{lastKDays}/final_knn/{i}_{j}/final_rmse.npy")
+            gp = gp[: len(gp) - 7]
+            qbc = qbc[: len(qbc) - 7]
+            knn = knn[: len(knn) - 7]
+
+            for reg, temp in zip(["gp", "qbc", "knn"], [gp, qbc, knn]):
+                temp1 = temp[~np.isnan(temp)]
+                days = np.array([i for i in range(temp.shape[0])])
+                store = {
+                    'kout': [i]*temp1.shape[0],
+                    'kin': [j]*temp1.shape[0],
+                    'reg': [reg] * temp1.shape[0],
+                    "day": list(days[~np.isnan(temp)]),
+                    "rmse": temp1,
+                    "lastKDays": [lastKDays]*temp1.shape[0],
+                    "seed": [-1]*temp1.shape[0]
+                }
+                tempdf = pd.DataFrame(store)
+                dfs.append(tempdf)
+
+
+            if rand:
+                qbc_rd = np.load(f"../exp2/src/{results}/{lastKDays}/final_random_qbc/{i}_{j}/final_rmse.npy")
+                gp_rd = np.load(f"../exp2/src/{results}/{lastKDays}/final_random_gp/{i}_{j}/final_rmse.npy")
+                knn_rd = np.load(f"../exp2/src/{results}/{lastKDays}/final_random_knn/{i}_{j}/final_rmse.npy")
+                qbc_rd = qbc_rd[:, :qbc_rd.shape[1] - 7]
+                knn_rd = knn_rd[:, :knn_rd.shape[1] - 7]
+                gp_rd = gp_rd[:, :gp_rd.shape[1] - 7]
+                for reg, temp in zip(["qbc_rd", "gp_rd", "knn_rd"], [qbc_rd, gp_rd, knn_rd]):
+                    for seed in range(5):
+                        temp1 = temp[seed, :]
+                        temp2 = temp1[~np.isnan(temp1)]
+                        days = np.array([i for i in range(temp1.shape[0])])
+                        store = {
+                            'kout': [i] * temp2.shape[0],
+                            'kin': [j] * temp2.shape[0],
+                            'reg': [reg] * temp2.shape[0],
+                            "day": list(days[~np.isnan(temp1)]),
+                            "rmse": temp2,
+                            "lastKDays": [lastKDays]*temp2.shape[0],
+                            "seed": [seed]*temp2.shape[0]
+                        }
+                        tempdf = pd.DataFrame(store)
+                        dfs.append(tempdf)
+
+    return pd.concat(dfs)
