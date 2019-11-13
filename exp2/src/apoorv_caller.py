@@ -1,47 +1,21 @@
 import sys
-import argparse
+import os
 
-sys.path.append("../../exp1/src")
+sys.path.append("../../")
+from exp1.src.ProcBucket import ProcBucket
 
-from ProcBucket import ProcBucket
+# pb = ProcBucket(10, 3)
 
-parser = argparse.ArgumentParser(
-    description='Helper script for running AL jobs ')
-parser.add_argument(
-    'kout_start', metavar='INT', type=int,
-    help = "kout_start"
-)
-parser.add_argument(
-    'kout_end', metavar='INT', type=int,
-    help = "kout_end"
-)
-parser.add_argument(
-    'kin_start', metavar='INT', type=int,
-    help = "kin_start"
-)
-parser.add_argument(
-    'kin_end', metavar='INT', type=int,
-    help = "kin_end"
-)
-parser.add_argument(
-    '--jobs', metavar='INT', type=int, default=10,
-    help='number of parallel scripts to run'
-)
-parser.add_argument(
-    '--stime', metavar='INT', type=int, default=50,
-    help='Poll time.'
-)
-
-args = parser.parse_args()
-pb = ProcBucket(args.jobs, args.stime)
-
-counter = 0
-for i in range(args.kout_start, args.kout_end+1):
-	for j in range(args.kin_start, args.kin_end+1):
-		cmd = f"bash ./scripts/{i}{j}.sh"
-		print (cmd)
-		st = pb.add_queue(cmd, saving_loc=f"outfiles_{i}")
-		print (st)
-
-st = pb.finalize()
-print (st)
+for k in [1]:
+    for i in range(6):
+        for j in range(5):
+            if not os.path.exists(f"knn_al_results/{i}_{j}_{k}"):
+                cmd = f"python called_knn.py --kout {i} --kin {j} --train_days 30 --act {k}"
+                ste = pb.add_queue(cmd, saving_loc=f"knn_al_results/{i}_{j}_{k}")
+                print (ste)
+#                 print (cmd)
+            # break
+        # break
+    # break
+ste = pb.finalize()
+print (ste)

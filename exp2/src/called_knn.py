@@ -57,11 +57,11 @@ def active(train_days, i, j, isact):
             }
 
     learners = {
-            0:KNeighborsRegressor(n_neighbors=5, weights='distance'),
-            1:KNeighborsRegressor(n_neighbors=11, weights='distance'),
-            2:KNeighborsRegressor(n_neighbors=13, weights='distance'),
-            3:KNeighborsRegressor(n_neighbors=15, weights='distance'),
-            4:KNeighborsRegressor(n_neighbors=17, weights='distance')
+            0:KNeighborsRegressor(n_neighbors=3, weights='distance'),
+            1:KNeighborsRegressor(n_neighbors=5, weights='distance'),
+            2:KNeighborsRegressor(n_neighbors=7, weights='distance'),
+            3:KNeighborsRegressor(n_neighbors=9, weights='distance'),
+            4:KNeighborsRegressor(n_neighbors=11, weights='distance')
            }           
 
     qbc = ActiveLearning(
