@@ -5,6 +5,8 @@ import time
 import os
 
 def write_log(proc, saving_loc):
+    if saving_loc is None:
+        return
     '''helpful for writing logs'''
     stdout = str(proc.stdout.read())
     stderr = str(proc.stderr.read())
@@ -16,6 +18,7 @@ def write_log(proc, saving_loc):
         f.write(stdout)
     with open(os.path.join(saving_loc, "err.txt"),"w") as f:
         f.write(stderr)
+    return
 
 class ProcBucket:
     """helpful for having `num` number of subprocesses alive and computing"""
@@ -27,6 +30,7 @@ class ProcBucket:
         self.sleep_time = sleep_time
         self.procs = {i: None for i in range(num)}
         self.saving_locs = {i: None for i in range(num)}
+        self.FNULL = open(os.devnull, 'wb')
         
     def _check_free(self):
         '''Returns the index of free slot else, returns None'''
@@ -49,12 +53,20 @@ class ProcBucket:
                     return i
         return None # none empty
 
-    def _create_proc(self, cmd):
+    def _create_proc(self, cmd, writeOutput):
         '''for creating specific process which doesn't print on stdout'''
-        return Popen(cmd.split(), stdout=PIPE, stderr=PIPE) 
+        if writeOutput:
+            return Popen(cmd.split(), stdout=PIPE, stderr=PIPE)
+        else:
+            return Popen(cmd.split(), stdout=self.FNULL, stderr=self.FNULL)
         
-    def add_queue(self, cmd, saving_loc):
+    def add_queue(self, cmd, saving_loc=None):
         '''Adds procs to queue and blocks if already we are busy'''
+        writeOutput = True
+        if saving_loc is None:
+            print(f"not saving output of the script\n{cmd}")
+            writeOutput = False
+
         self.total += 1
         while True:
             rtrn_str = "Running...\n" \
@@ -64,7 +76,7 @@ class ProcBucket:
             if ix is None: # all are busy
                 time.sleep(self.sleep_time)
             else:
-                self.procs[ix] = self._create_proc(cmd)
+                self.procs[ix] = self._create_proc(cmd, writeOutput)
                 self.saving_locs[ix] = saving_loc
                 return rtrn_str
             

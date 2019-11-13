@@ -4,7 +4,7 @@ import os
 sys.path.append("../../")
 from exp1.src.ProcBucket import ProcBucket
 
-# pb = ProcBucket(10, 3)
+pb = ProcBucket(10, 3)
 
 for k in [1]:
     for i in range(6):
