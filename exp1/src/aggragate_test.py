@@ -12,7 +12,7 @@ def get_data(Pfolder):
     global count
     global full_df
     if not os.path.isdir(Pfolder):
-        if 'results.csv' in Pfolder:
+        if 'results_test.csv' in Pfolder:
             count += 1
             if count % 1000 == 0:
                 print (count)
@@ -33,7 +33,7 @@ def get_data(Pfolder):
 
 def get_df_struct(Pfolder):
     if not os.path.isdir(Pfolder):
-        if 'results.csv' in Pfolder:
+        if 'results_test.csv' in Pfolder:
             return pd.read_csv(Pfolder)
         else: # we ignore
             return None
@@ -54,6 +54,6 @@ count = 0
 get_data(where) # updates global full_df. impure function, I know.
 for c, d in zip(df.columns, df.dtypes):
     full_df[c] = full_df[c].astype(d)
-full_df.to_csv(os.path.join(where, 'final.csv'), index=False)
+full_df.to_csv(os.path.join(where, 'final_test.csv'), index=False)
 print(full_df.head())
 print(full_df.shape)
