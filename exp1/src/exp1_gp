@@ -1,0 +1,18 @@
+conda activate py36
+python called.py --reg gpST --lastKDays 50 --stepSize 2 --gpuid 0 --datafile ../../data/beijinga_scaled.csv -s
+
+conda activate py36
+python called.py --reg gpST --lastKDays 200 --stepSize 2 --gpuid 0 --datafile ../../data/beijinga_scaled.csv -s
+
+conda activate py36
+python called.py --reg gpFULL --lastKDays 50 --stepSize 2 --gpuid 0 --datafile ../../data/beijingb_scaled.csv -s
+
+conda activate py36
+python called.py --reg gpFULL --lastKDays 200 --stepSize 2 --gpuid 0 --datafile ../../data/beijingb_scaled.csv -s
+
+conda activate py36
+python called.py --reg gpST --lastKDays 100 --stepSize 2 --gpuid 1 --datafile ../../data/beijinga_scaled.csv -s
+
+conda activate py36
+python called.py --reg gpFULL --lastKDays 100 --stepSize 2 --gpuid 1 --datafile ../../data/beijingb_scaled.csv -s
+

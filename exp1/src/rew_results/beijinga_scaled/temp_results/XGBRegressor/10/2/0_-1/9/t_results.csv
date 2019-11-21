@@ -1,0 +1,2 @@
+is_val_error,reg,stepSize,lastKDays,kout,kin,time_ix,hy_ix,rmse,mae
+False,XGBRegressor,2,10,0,-1,9,12,2.3535921351343596,1.975264549255371

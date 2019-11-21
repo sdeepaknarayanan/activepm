@@ -1,0 +1,44 @@
+conda activate gpflow
+python called1.py --kout 0 --kin 0 --act 0 --train_days 50 --id 1
+
+conda activate gpflow
+python called1.py --kout 0 --kin 1 --act 0 --train_days 50 --id 1
+
+conda activate gpflow
+python called1.py --kout 0 --kin 2 --act 0 --train_days 50 --id 1
+
+conda activate gpflow
+python called1.py --kout 0 --kin 3 --act 0 --train_days 50 --id 1
+
+conda activate gpflow
+python called1.py --kout 0 --kin 4 --act 0 --train_days 50 --id 1
+
+conda activate gpflow
+python called1.py --kout 1 --kin 0 --act 0 --train_days 50 --id 1
+
+conda activate gpflow
+python called1.py --kout 1 --kin 1 --act 0 --train_days 50 --id 1
+
+conda activate gpflow
+python called1.py --kout 1 --kin 2 --act 0 --train_days 50 --id 0
+
+conda activate gpflow
+python called1.py --kout 1 --kin 3 --act 0 --train_days 50 --id 0
+
+conda activate gpflow
+python called1.py --kout 1 --kin 4 --act 0 --train_days 50 --id 0
+
+conda activate gpflow
+python called1.py --kout 2 --kin 0 --act 0 --train_days 50 --id 0
+
+conda activate gpflow
+python called1.py --kout 2 --kin 1 --act 0 --train_days 50 --id 0
+
+conda activate gpflow
+python called1.py --kout 2 --kin 2 --act 0 --train_days 50 --id 0
+
+conda activate gpflow
+python called1.py --kout 2 --kin 3 --act 0 --train_days 50 --id 0
+
+conda activate gpflow
+python called1.py --kout 2 --kin 4 --act 0 --train_days 50 --id 0

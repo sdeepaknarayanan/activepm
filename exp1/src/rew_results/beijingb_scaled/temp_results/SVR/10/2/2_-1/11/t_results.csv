@@ -1,0 +1,3 @@
+is_val_error,reg,stepSize,lastKDays,kout,kin,time_ix,hy_ix,rmse,mae
+False,SVR,2,10,2,-1,9,5,4.437893075674287,3.783886304987606
+False,SVR,2,10,2,-1,11,5,19.423798314202394,12.096039141008838

@@ -1,0 +1,2 @@
+is_val_error,reg,stepSize,lastKDays,kout,kin,time_ix,hy_ix,rmse,mae
+False,Lasso,2,20,0,-1,19,7,36.2386458679174,35.92202849724205

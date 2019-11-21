@@ -1,0 +1,5 @@
+is_val_error,reg,stepSize,lastKDays,kout,kin,time_ix,hy_ix,rmse,mae
+False,KNeighborsRegressor,2,1,2,-1,0,9,13.344880363376667,11.751691756705346
+False,KNeighborsRegressor,2,1,2,-1,2,9,15.612735509551415,11.922549025838558
+False,KNeighborsRegressor,2,1,2,-1,4,9,9.485153418056575,6.913469669897395
+False,KNeighborsRegressor,2,1,2,-1,6,9,13.525954612447478,11.223879970116203

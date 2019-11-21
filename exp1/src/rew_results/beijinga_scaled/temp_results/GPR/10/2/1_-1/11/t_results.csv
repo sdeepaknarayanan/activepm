@@ -1,0 +1,3 @@
+is_val_error,reg,stepSize,lastKDays,kout,kin,time_ix,hy_ix,rmse,mae
+False,GPR,2,10,1,-1,9,-1,2.087510753097717,1.9369212107432905
+False,GPR,2,10,1,-1,11,-1,57.193719203171426,55.5540458937198

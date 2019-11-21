@@ -23,7 +23,7 @@ from utils import mae, rmse, getfName
 parser = argparse.ArgumentParser(
     description='Called Interpolator, saves relavant csvs in ')
 parser.add_argument(
-    '--reg', metavar='xgb|svr|knn|las|gpST|gpFULL', dest='reg', default='knn',
+    '--reg', metavar='xgb|xgbRF|svr|knn|las|gpST|gpFULL', dest='reg', default='knn',
     help="Regressors to use", type=str
 )
 parser.add_argument(
@@ -38,29 +38,49 @@ parser.add_argument(
     '--datafile', metavar='PATH', dest='datafile',
     help="data csv", type=str
 )
-parser.add_argument('-s', help="save results", action='store_true', default=False)
-parser.add_argument('--gpuid', help="GPU to use", metavar='INT', default=0, type=int)
+parser.add_argument(
+    '--gpuid', help="GPU to use", metavar='INT', 
+    default=0, type=int
+)
+parser.add_argument(
+    '--totalDays', metavar='INT', default=None,
+    help="totalDays", type=int
+)
+parser.add_argument(
+    '--loc', metavar='PATH', default='results',
+    help="location to store results", type=str
+)
+parser.add_argument(
+    '-s', help="save results", action='store_true', 
+    default=False
+)
 
 # utility functions
 def rmse_mae_over(
-    stepSize,
-    lastKDays,
+    args,
     Regressor,
-    hyperparameters,
-    datafile,
-    reg_passed, # only for distinguishing between gpST and gpFULL
-    fname,
+    hyperparameters, # only for distinguishing between gpST and gpFULL
     ):
+
+    stepSize = args.stepSize
+    lastKDays = args.lastKDays
+    datafile = args.datafile
+    reg_passed = args.reg
+    totalDays = args.totalDays
+    fname = getfName(datafile)
+    loc = args.loc
     '''Finds the rmse and mae by doing nested cross validation over the dataset'''
     counter = 0
     splits = 6 # kfold nested cross-validation (Fixed)
     contextDays = 30 # This is a the amount of data (in days) to start with. (Fixed)
+    contextDays = lastKDays
 
     df = pd.read_csv(datafile)
     df = df[df.columns[1:]] # assuming the first col is unlabled
     times = df['ts'].unique()
     times.sort()
-    totalDays = len(times)
+    if totalDays is None:
+        totalDays = len(times)
     X_cols = list(df.columns)
     X_cols.remove('PM2.5')
     X_cols.remove('station_id')
@@ -150,9 +170,12 @@ def rmse_mae_over(
                         counter += 1
                         # initilize the regressor with hyperparams
                         # TODO if using GPFLOW, take care of Cholesky Decomp Failure
-                        reg = Regressor(**hy)
-                        reg.fit(temporal_train_df[X_cols].values, temporal_train_df[y_col].values.ravel())
-                        predictions = reg.predict(temporal_val_df[X_cols].values)
+                        try:
+                            reg = Regressor(**hy)
+                            reg.fit(temporal_train_df[X_cols].values, temporal_train_df[y_col].values.ravel())
+                            predictions = reg.predict(temporal_val_df[X_cols].values)
+                        except ValueError:
+                            continue
 
                         rmse0 = rmse(predictions, temporal_val_df[y_col].values)
                         mae0 = mae(predictions, temporal_val_df[y_col].values)
@@ -214,6 +237,7 @@ def rmse_mae_over(
 
         # find the error values on the test set
         store = { k: [] for k in store.keys() } # reinit store
+        kin = -1
         for time_ix in range(contextDays-1, totalDays, stepSize): # zero index
 
             # getting the correct stations
@@ -341,15 +365,17 @@ def rmse_mae_over(
                     continue
 
             else:
-                reg = Regressor(**hy)
-                reg.fit(temporal_train_val_df[X_cols].values, temporal_train_val_df[y_col].values.ravel())
-                predictions = reg.predict(temporal_test_df[X_cols].values)
+                try:
+                    reg = Regressor(**hy)
+                    reg.fit(temporal_train_val_df[X_cols].values, temporal_train_val_df[y_col].values.ravel())
+                    predictions = reg.predict(temporal_test_df[X_cols].values)
+                except ValueError:
+                    continue
 
             rmse0 = rmse(predictions, temporal_test_df[y_col].values)
             mae0 = mae(predictions, temporal_test_df[y_col].values)
 
             # storing the results for test errors
-            kin = -1
             store['is_val_error'].append(False)
             store['reg'].append(Regressor.__name__)
             store['stepSize'].append(stepSize)
@@ -363,7 +389,7 @@ def rmse_mae_over(
 
             temp_df_store = pd.DataFrame(store)
             tempstr = '/'.join([Regressor.__name__, str(lastKDays), str(stepSize)])
-            store_path = f"./results/{fname}/temp_results/{tempstr}/{kout}_{kin}/{time_ix}"
+            store_path = f"./{loc}/{fname}/temp_results/{tempstr}/{kout}_{kin}/{time_ix}"
             if not os.path.exists(store_path):
                 os.makedirs(store_path)
             print (f"storing at {store_path}")
@@ -373,7 +399,7 @@ def rmse_mae_over(
         # intermediate saving of outdf
         outdf = outdf.append(test_err_df, ignore_index=True) # added to final dataframe to return
         tempstr = '/'.join([Regressor.__name__, str(lastKDays), str(stepSize)])
-        store_path = f"./results/{fname}/temp_results_append/{tempstr}/{kout}_{kin}"
+        store_path = f"./{loc}/{fname}/temp_results_append/{tempstr}/{kout}_{kin}"
         if not os.path.exists(store_path):
             os.makedirs(store_path)
         print (f"storing at {store_path}")
@@ -389,7 +415,7 @@ def setRegHy(args):
     lastKDays = args.lastKDays
 
     if reg == 'svr':
-        from thundersvm import SVR
+        from sklearn.svm import SVR
         Regressor = SVR
         hyperparameters = [] # SVR cries when we pass empty params
         C = [10**i for i in [-3, -2, 0, 1, 3, 5]]
@@ -397,6 +423,7 @@ def setRegHy(args):
         for c in C:
             hy = {
                'C': c,
+               'gamma': 'auto'
             }
             hyperparameters.append(hy)
 
@@ -420,6 +447,23 @@ def setRegHy(args):
             hyperparameters.append(hy)
 
     elif reg == 'xgb':
+        Regressor = xgboost.XGBRegressor
+        # hyperparameters given to be searched by Deepak
+        depths = [10, 50]
+        lrs = [0.01, 0.1, 1]
+        estimators = [10, 50]
+        for depth in depths:
+            for lr in lrs:
+                for estimator in estimators:
+                    hy = {
+                        'max_depth': depth,
+                        'learning_rate': lr,
+                        'n_estimators': estimator,
+            'n_jobs': -1,
+                    }
+                    hyperparameters.append(hy)
+
+    elif reg == 'xgbRF':
         Regressor = xgboost.XGBRFRegressor
         # hyperparameters given to be searched by Deepak
         depths = [10, 50]
@@ -460,13 +504,9 @@ if __name__ == "__main__":
     Regressor, hyperparameters = setRegHy(args)
     start = time.time()
     results, counter = rmse_mae_over(
-        args.stepSize,
-        args.lastKDays, # svr changes this to be within 30
+        args,
         Regressor, # set by the function setRegHy above.
         hyperparameters, # set by the function setRegHy above.
-        args.datafile,
-        args.reg,
-        fname,
     )
     end = time.time()
     print("Time Taken (s):", end - start)
@@ -476,8 +516,9 @@ if __name__ == "__main__":
     print(results.head())
 
     # saving the results
+
     if args.s:
-        store_path = f"./results/{fname}/{args.reg}/{args.lastKDays}/{args.stepSize}"
+        store_path = f"./{args.loc}/{fname}/{args.reg}/{args.lastKDays}/{args.stepSize}"
         if not os.path.exists(store_path):
             os.makedirs(store_path)
         results.to_csv(store_path + '/results.csv', index=None)
