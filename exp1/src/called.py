@@ -322,18 +322,17 @@ def rmse_mae_over(
                     overall_kernel = (xy_matern_1 + xy_matern_2) * timeKernel
 
                 elif reg_passed == 'gpFULL': # GP Full Data
-                    raise NotImplemented
+                    assert(len(X_cols) == 9)
                     xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
                     xy_matern_2 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
-                    t_matern = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
-                    t_other = [gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2]) for i in range(5)]
-                    timeKernel = t_matern
-                    for i in t_other:
-                        time = time + i
-                    combined = gpflow.kernels.RBF(input_dim = 1, active_dims = [4])*(gpflow.kernels.Matern52(input_dim = 2, active_dims = [3, 5], ARD=True) + gpflow.kernels.Matern32(input_dim = 2, active_dims = [3,5], ARD=True))
-                    wsk = gpflow.kernels.RBF(input_dim = 2, active_dims = [6,7], ARD=True)
-                    weathk = gpflow.kernels.RBF(input_dim = 1, active_dims = [8])
-                    overall_kernel = (xy_matern_1 + xy_matern_2) * time * combined * wsk * weathk
+                    timeKernel = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
+                    
+                    combined = gpflow.kernels.Matern52(input_dim = 1, active_dims = [3])\
+                     *gpflow.kernels.Matern52(input_dim = 1, active_dims = [5])
+                    
+                    wsk = gpflow.kernels.RBF(input_dim = 1, active_dims = [6])\
+                     * gpflow.kernels.RBF(input_dim = 1, active_dims = [7])
+                    overall_kernel = (xy_matern_1 + xy_matern_2) * timeKernel * combined * wsk
 
                 else:
                     raise NotImplemented
