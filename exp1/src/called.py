@@ -71,9 +71,8 @@ def rmse_mae_over(
     del args
     fname = getfName(datafile)
     '''Finds the rmse and mae by doing nested cross validation over the dataset'''
-    counter = 0
+    counter = 0 # number of computations
     splits = 6 # kfold nested cross-validation (Fixed)
-    contextDays = 30 # This is a the amount of data (in days) to start with. (Fixed)
     contextDays = lastKDays
 
     df = pd.read_csv(datafile)
@@ -276,32 +275,6 @@ def rmse_mae_over(
             outdf.to_csv(store_path + '/results.csv', index=None)
 
         if Regressor.__name__ in ["GPR"]:
-            # reset stuff
-            tf.reset_default_graph()
-            graph = tf.get_default_graph()
-            gpflow.reset_default_session(graph=graph)
-
-            # kernel magik
-            if reg_passed == 'gpST': # GP Spatial Temporal
-                xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
-                xy_matern_2 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
-                timeKernel = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
-                overall_kernel = (xy_matern_1 + xy_matern_2) * timeKernel
-
-            elif reg_passed == 'gpFULL': # GP Full Data
-                raise NotImplemented
-                xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
-                xy_matern_2 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
-                t_matern = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
-                t_other = [gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2]) for i in range(5)]
-                timeKernel = t_matern
-                for i in t_other:
-                    time = time + i
-                combined = gpflow.kernels.RBF(input_dim = 1, active_dims = [4])*(gpflow.kernels.Matern52(input_dim = 2, active_dims = [3, 5], ARD=True) + gpflow.kernels.Matern32(input_dim = 2, active_dims = [3,5], ARD=True))
-                wsk = gpflow.kernels.RBF(input_dim = 2, active_dims = [6,7], ARD=True)
-                weathk = gpflow.kernels.RBF(input_dim = 1, active_dims = [8])
-                overall_kernel = (xy_matern_1 + xy_matern_2) * time * combined * wsk * weathk
-
             # GET DATA
             sts_test = allStations[sts_test_index]
             sts_train_val = allStations[sts_ftrain_index]
@@ -334,12 +307,40 @@ def rmse_mae_over(
                 print ('-' * 80)
                 print ("Try to pass data to obj")
                 #################################################
-                if reg_passed == 'gpST':
+
+                # reset stuff
+                tf.reset_default_graph()
+                graph = tf.get_default_graph()
+                gpflow.reset_default_session(graph=graph)
+
+                # kernel magik
+                if reg_passed == 'gpST': # GP Spatial Temporal
                     assert(len(X_cols) == 3)
+                    xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                    xy_matern_2 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                    timeKernel = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
+                    overall_kernel = (xy_matern_1 + xy_matern_2) * timeKernel
+
+                elif reg_passed == 'gpFULL': # GP Full Data
+                    raise NotImplemented
+                    xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                    xy_matern_2 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                    t_matern = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
+                    t_other = [gpflow.kernels.Matern32(input_dim=1, active_dims=[2])*gpflow.kernels.Periodic(input_dim=1, active_dims=[2]) for i in range(5)]
+                    timeKernel = t_matern
+                    for i in t_other:
+                        time = time + i
+                    combined = gpflow.kernels.RBF(input_dim = 1, active_dims = [4])*(gpflow.kernels.Matern52(input_dim = 2, active_dims = [3, 5], ARD=True) + gpflow.kernels.Matern32(input_dim = 2, active_dims = [3,5], ARD=True))
+                    wsk = gpflow.kernels.RBF(input_dim = 2, active_dims = [6,7], ARD=True)
+                    weathk = gpflow.kernels.RBF(input_dim = 1, active_dims = [8])
+                    overall_kernel = (xy_matern_1 + xy_matern_2) * time * combined * wsk * weathk
+
                 else:
                     raise NotImplemented
                 X = temporal_train_val_df[X_cols].values
                 y = temporal_train_val_df[y_col].values
+
+                # Check if Time is col 3 long and lat are 1 adn 2respevc
                 try:
                     counter += 1
                     reg = Regressor(
@@ -348,7 +349,6 @@ def rmse_mae_over(
                         kern = overall_kernel,
                         mean_function = None
                     )
-                    print ("At least going in the reg obj")
 
                     # optimize
                     opt = gpflow.train.ScipyOptimizer()
@@ -373,7 +373,6 @@ def rmse_mae_over(
                     store['hy_ix'].append(-1) # doesn't make sense for this.
                     store['rmse'].append(rmse0)
                     store['mae'].append(mae0)
-                    hy_ix = -1
 
                 except Exception as e:
                     print ("not_trained.")
@@ -386,7 +385,7 @@ def rmse_mae_over(
                 gp_results_df = pd.DataFrame(store)
                 # added to final dataframe to return + copy added
                 # temp results being stored
-                tempstr = '/'.join([Regressor.__name__, str(lastKDays), str(stepSize)])
+                tempstr = '/'.join([reg_passed, str(lastKDays), str(stepSize)])
                 store_path = f"./{loc}/{fname}/temp_results/{tempstr}/{kout}_{-1}/{time_ix}"
                 if not os.path.exists(store_path):
                     os.makedirs(store_path)
@@ -395,7 +394,7 @@ def rmse_mae_over(
         test_err_df = pd.DataFrame(store)
         # intermediate saving of outdf
         outdf = outdf.append(test_err_df, ignore_index=True) # added to final dataframe to return
-        tempstr = '/'.join([Regressor.__name__, str(lastKDays), str(stepSize)])
+        tempstr = '/'.join([reg_passed, str(lastKDays), str(stepSize)])
         store_path = f"./{loc}/{fname}/temp_results_append/{tempstr}/{kout}_{-1}"
         if not os.path.exists(store_path):
             os.makedirs(store_path)
