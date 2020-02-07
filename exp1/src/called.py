@@ -137,11 +137,6 @@ def rmse_mae_over(
                 train_df = df[df['station_id'].isin(sts_train)]
                 train_val_df = df[df['station_id'].isin(sts_train_val)]
 
-                # checking if there is some intersection, should not be
-                # print(np.intersect1d(test_df['station_id'].unique(), val_df['station_id'].unique()))
-                # print(np.intersect1d(train_df['station_id'].unique(), val_df['station_id'].unique()))
-                # print(np.intersect1d(train_df['station_id'].unique(), test_df['station_id'].unique()))
-
                 # getting the temporally relevant data
                 for time_ix in range(contextDays - 1, totalDays, stepSize): # zero index
                     # data before today
@@ -311,13 +306,6 @@ def rmse_mae_over(
             sts_test = allStations[sts_test_index]
             sts_train_val = allStations[sts_ftrain_index]
 
-            # testing
-            # plt.scatter(sts_test, [1]*len(sts_test), c='r', alpha=.6)
-            # # plt.scatter(sts_val, [1]*len(sts_val), c='b', alpha=.6)
-            # plt.scatter(sts_train_val, [1]*len(sts_train_val), c='c', alpha=.6)
-            # plt.show()
-            # plt.close()
-
             test_df = df[df['station_id'].isin(sts_test)]
             train_val_df = df[df['station_id'].isin(sts_train_val)]
 
@@ -330,20 +318,6 @@ def rmse_mae_over(
                 temp = max(0, time_ix - lastKDays + 1)
                 temporal_train_val_df = temporal_train_val_df[temporal_train_val_df['ts'] >= times[temp]]
                 del temp
-
-                # plotting the training data -- Debugging
-                # for ix, temp_df in zip("gck", [temporal_train_val_df, temporal_test_df]):
-                #     plt.scatter(temp_df["ts"].values, temp_df["station_id"].values, c=ix, alpha=0.3, s=30)
-                # plt.xlim(-0.03, 1.03)
-                # plt.ylim(1000, 1038)
-                # plt.axvline(x = times[time_ix], alpha=.5, c='r')
-                # plt.legend(["Today's Day", "Train_Validation", "Test"])
-                # plt.title(f"Data fed for lastKDays={lastKDays}")
-                # plt.xlabel("Day # (Scaled)")
-                # plt.ylabel("Sation IDs")
-                # plt.savefig(f"{time_ix}.png", dpi=120)
-                # plt.show()
-                # plt.close()
 
                 # checking if dfs contain atleast one, row, else continue
                 trainable = True
@@ -409,15 +383,14 @@ def rmse_mae_over(
                 print ('-' * 80)
                 print ()
 
-            gp_results_df = pd.DataFrame(store)
-            # added to final dataframe to return + copy added
-            outdf = outdf.append(gp_results_df, ignore_index=True)
-            # temp results being stored
-            tempstr = '/'.join([Regressor.__name__, str(lastKDays), str(stepSize)])
-            store_path = f"./{loc}/{fname}/temp_results/{tempstr}/{kout}_{-1}/{time_ix}"
-            if not os.path.exists(store_path):
-                os.makedirs(store_path)
-            outdf.to_csv(store_path + '/results.csv', index=None)
+	            gp_results_df = pd.DataFrame(store)
+	            # added to final dataframe to return + copy added
+	            # temp results being stored
+	            tempstr = '/'.join([Regressor.__name__, str(lastKDays), str(stepSize)])
+	            store_path = f"./{loc}/{fname}/temp_results/{tempstr}/{kout}_{-1}/{time_ix}"
+	            if not os.path.exists(store_path):
+	                os.makedirs(store_path)
+	            gp_results_df.to_csv(store_path + '/results.csv', index=None)
 
         test_err_df = pd.DataFrame(store)
         # intermediate saving of outdf
@@ -472,23 +445,6 @@ def setRegHy(args):
         for alpha in (alphas):
             hy = { 'alpha': alpha }
             hyperparameters.append(hy)
-
-    # elif reg == 'xgb':
-    #     Regressor = xgboost.XGBRegressor
-    #     # hyperparameters given to be searched by Deepak
-    #     depths = [10, 50]
-    #     lrs = [0.01, 0.1, 1]
-    #     estimators = [10, 50]
-    #     for depth in depths:
-    #         for lr in lrs:
-    #             for estimator in estimators:
-    #                 hy = {
-    #                     'max_depth': depth,
-    #                     'learning_rate': lr,
-    #                     'n_estimators': estimator,
-    #         'n_jobs': -1,
-    #                 }
-    #                 hyperparameters.append(hy)
 
     elif reg == 'xgbRF':
         Regressor = xgboost.XGBRFRegressor
