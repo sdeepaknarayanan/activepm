@@ -23,7 +23,7 @@ from utils import mae, rmse, getfName
 parser = argparse.ArgumentParser(
     description='Called Interpolator, saves relavant csvs in loc')
 parser.add_argument(
-    '--reg', metavar='xgb|xgbRF|svr|knn|las|gpST', dest='reg', default='knn',
+    '--reg', metavar='xgb|xgbRF|svr|knn|las|gpST|gpST2|gpFULL', dest='reg', default='knn',
     help="Regressors to use", type=str
 )
 parser.add_argument(
@@ -321,6 +321,13 @@ def rmse_mae_over(
                     timeKernel = gpflow.kernels.Matern32(input_dim=1, active_dims=[2])
                     overall_kernel = (xy_matern_1 + xy_matern_2) * timeKernel
 
+                elif reg_passed == 'gpST2': # GP Spatial Temporal 2
+                    assert(len(X_cols) == 3)
+                    xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                    xy_matern_2 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
+                    timeKernel = gpflow.kernels.RBF(input_dim=1, active_dims=[2])
+                    overall_kernel = (xy_matern_1 + xy_matern_2) * timeKernel
+
                 elif reg_passed == 'gpFULL': # GP Full Data
                     assert(len(X_cols) == 9)
                     xy_matern_1 = gpflow.kernels.Matern32(input_dim=2, ARD=True, active_dims=[0, 1])
@@ -461,7 +468,7 @@ def setRegHy(args):
                     }
                     hyperparameters.append(hy)
 
-    elif reg in ['gpST', 'gpFULL']:
+    elif reg in ['gpST', 'gpFULL', 'gpST2']:
         Regressor = gpflow.models.GPR
         config = tf.ConfigProto()
         config.gpu_options.allow_growth=True
