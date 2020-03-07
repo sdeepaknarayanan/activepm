@@ -14,3 +14,10 @@ Scripts in the following format:
 
 ```python called1.py --kout 3 --kin 0 --train_days 10 --act 0 --id 0```
 
+For experiment 1 - interpolation - use
+
+```python called.py --reg <reg> --stepSize 2 -lastKDays 10 --datafile <path> --totalDays 350 -s True --loc <location to store, no need to change>```
+Choose regressors by using help for argparse, path as datasets (beijingscaleda and beijingscaledb for feature sets a and b).
+
+
+
