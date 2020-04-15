@@ -12,6 +12,9 @@ For experiment 2 - Active Learning - Use
 
 Scripts in the following format:
 
+Here kout is outer fold, kin is inner fold, act is if active learning or not, set id to default to 0 - id is the gpu id, called1.py is the script name and train days is the number of days used for training purposes. 
+Regressor names can be obtained via using the help in argparse.
+
 ```python called1.py --kout 3 --kin 0 --train_days 10 --act 0 --id 0```
 
 For experiment 1 - interpolation - use
