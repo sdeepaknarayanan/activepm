@@ -33,6 +33,7 @@ Please cite us if you are using our work:
     booktitle={ICML 2020 Workshop on Real World Experiment Design and Active Learning},
     year={2020}
 }
+```
 ```bibtex
 @inproceedings{10.1145/3371158.3371208,
 author = {Narayanan, S. Deepak and Agnihotri, Apoorv and Batra, Nipun},
