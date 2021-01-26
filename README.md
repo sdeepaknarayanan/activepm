@@ -25,5 +25,29 @@ Choose regressors by using help for argparse, path as datasets (beijingscaleda a
 before running experiments, kindly remove all the folders named results so that results can be regenerated. 
 To obtain the mean errors, kindly take the mean of the rmse's of the generated csv's.
 
-
-
+Please cite us if you are using our work:
+```bibtex
+@inproceedings{realml_20,
+    title={Active Learning for Air Quality Station Deployment},
+    author={S Deepak Narayanan and Apoorv Agnihotri and Nipun Batra},
+    booktitle={ICML 2020 Workshop on Real World Experiment Design and Active Learning},
+    year={2020}
+}
+```bibtex
+@inproceedings{10.1145/3371158.3371208,
+author = {Narayanan, S. Deepak and Agnihotri, Apoorv and Batra, Nipun},
+title = {Active Learning for Air Quality Station Location Recommendation},
+year = {2020},
+isbn = {9781450377386},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3371158.3371208},
+doi = {10.1145/3371158.3371208},
+booktitle = {Proceedings of the 7th ACM IKDD CoDS and 25th COMAD},
+pages = {326–327},
+numpages = {2},
+location = {Hyderabad, India},
+series = {CoDS COMAD 2020}
+}
+```
+  
