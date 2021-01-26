@@ -1,5 +1,5 @@
-# activepm
-Codes and results for active learning for station deployment
+# Active Learning for Air Quality Station Location Recommendation
+
 Run all experiments from the master branch
 
 Instructions for running the code:
